@@ -121,7 +121,10 @@ public class MainActivity extends AppCompatActivity {
 
 
         ActionBar ab = getSupportActionBar();
-        ab.setDisplayShowHomeEnabled(true);
+        if (ab != null) {
+            ab.setDisplayShowHomeEnabled(true);
+        }
+
 
         getMyCurrentLocation();
 
@@ -147,76 +150,58 @@ public class MainActivity extends AppCompatActivity {
 
         if("01d".equals(iconValue)){
             Bitmap bMap = BitmapFactory.decodeResource(getResources(), R.drawable.d01);
-            Bitmap bMapScaled = Bitmap.createScaledBitmap(bMap, 60, 60, true);
-            return bMapScaled;
+            return Bitmap.createScaledBitmap(bMap, 60, 60, true);
         }else if("01n".equals(iconValue)){
             Bitmap bMap = BitmapFactory.decodeResource(getResources(), R.drawable.n01);
-            Bitmap bMapScaled = Bitmap.createScaledBitmap(bMap, 60, 60, true);
-            return bMapScaled;
+            return Bitmap.createScaledBitmap(bMap, 60, 60, true);
         }else if("02d".equals(iconValue)){
             Bitmap bMap = BitmapFactory.decodeResource(getResources(), R.drawable.d02);
-            Bitmap bMapScaled = Bitmap.createScaledBitmap(bMap, 60, 60, true);
-            return bMapScaled;
+            return Bitmap.createScaledBitmap(bMap, 60, 60, true);
         }else if("02n".equals(iconValue)){
             Bitmap bMap = BitmapFactory.decodeResource(getResources(), R.drawable.n02);
-            Bitmap bMapScaled = Bitmap.createScaledBitmap(bMap, 60, 60, true);
-            return bMapScaled;
+            return Bitmap.createScaledBitmap(bMap, 60, 60, true);
         }else if("03d".equals(iconValue)){
             Bitmap bMap = BitmapFactory.decodeResource(getResources(), R.drawable.d03);
-            Bitmap bMapScaled = Bitmap.createScaledBitmap(bMap, 60, 60, true);
-            return bMapScaled;
+            return Bitmap.createScaledBitmap(bMap, 60, 60, true);
         }else if("03n".equals(iconValue)){
             Bitmap bMap = BitmapFactory.decodeResource(getResources(), R.drawable.n03);
-            Bitmap bMapScaled = Bitmap.createScaledBitmap(bMap, 60, 60, true);
-            return bMapScaled;
+            return Bitmap.createScaledBitmap(bMap, 60, 60, true);
         }else if("04d".equals(iconValue)){
             Bitmap bMap = BitmapFactory.decodeResource(getResources(), R.drawable.d04);
-            Bitmap bMapScaled = Bitmap.createScaledBitmap(bMap, 60, 60, true);
-            return bMapScaled;
+            return Bitmap.createScaledBitmap(bMap, 60, 60, true);
         }else if("04n".equals(iconValue)){
             Bitmap bMap = BitmapFactory.decodeResource(getResources(), R.drawable.n04);
-            Bitmap bMapScaled = Bitmap.createScaledBitmap(bMap, 60, 60, true);
-            return bMapScaled;
+            return Bitmap.createScaledBitmap(bMap, 60, 60, true);
         }else if("09d".equals(iconValue)){
             Bitmap bMap = BitmapFactory.decodeResource(getResources(), R.drawable.d09);
-            Bitmap bMapScaled = Bitmap.createScaledBitmap(bMap, 60, 60, true);
-            return bMapScaled;
+            return Bitmap.createScaledBitmap(bMap, 60, 60, true);
         }else if("09n".equals(iconValue)){
             Bitmap bMap = BitmapFactory.decodeResource(getResources(), R.drawable.n09);
-            Bitmap bMapScaled = Bitmap.createScaledBitmap(bMap, 60, 60, true);
-            return bMapScaled;
+            return Bitmap.createScaledBitmap(bMap, 60, 60, true);
         }else if("10d".equals(iconValue)){
             Bitmap bMap = BitmapFactory.decodeResource(getResources(), R.drawable.d10);
-            Bitmap bMapScaled = Bitmap.createScaledBitmap(bMap, 60, 60, true);
-            return bMapScaled;
+            return Bitmap.createScaledBitmap(bMap, 60, 60, true);
         }else if("10n".equals(iconValue)){
             Bitmap bMap = BitmapFactory.decodeResource(getResources(), R.drawable.n10);
-            Bitmap bMapScaled = Bitmap.createScaledBitmap(bMap, 60, 60, true);
-            return bMapScaled;
+            return Bitmap.createScaledBitmap(bMap, 60, 60, true);
         }else if("11d".equals(iconValue)){
             Bitmap bMap = BitmapFactory.decodeResource(getResources(), R.drawable.d11);
-            Bitmap bMapScaled = Bitmap.createScaledBitmap(bMap, 60, 60, true);
-            return bMapScaled;
+            return Bitmap.createScaledBitmap(bMap, 60, 60, true);
         }else if("11n".equals(iconValue)){
             Bitmap bMap = BitmapFactory.decodeResource(getResources(), R.drawable.n11);
-            Bitmap bMapScaled = Bitmap.createScaledBitmap(bMap, 60, 60, true);
-            return bMapScaled;
+            return Bitmap.createScaledBitmap(bMap, 60, 60, true);
         }else if("13d".equals(iconValue)){
             Bitmap bMap = BitmapFactory.decodeResource(getResources(), R.drawable.d13);
-            Bitmap bMapScaled = Bitmap.createScaledBitmap(bMap, 60, 60, true);
-            return bMapScaled;
+            return Bitmap.createScaledBitmap(bMap, 60, 60, true);
         }else if("13n".equals(iconValue)){
             Bitmap bMap = BitmapFactory.decodeResource(getResources(), R.drawable.n13);
-            Bitmap bMapScaled = Bitmap.createScaledBitmap(bMap, 60, 60, true);
-            return bMapScaled;
+            return Bitmap.createScaledBitmap(bMap, 60, 60, true);
         }else if("50d".equals(iconValue)){
             Bitmap bMap = BitmapFactory.decodeResource(getResources(), R.drawable.d50);
-            Bitmap bMapScaled = Bitmap.createScaledBitmap(bMap, 60, 60, true);
-            return bMapScaled;
+            return Bitmap.createScaledBitmap(bMap, 60, 60, true);
         }else if("50n".equals(iconValue)){
             Bitmap bMap = BitmapFactory.decodeResource(getResources(), R.drawable.n50);
-            Bitmap bMapScaled = Bitmap.createScaledBitmap(bMap, 60, 60, true);
-            return bMapScaled;
+            return Bitmap.createScaledBitmap(bMap, 60, 60, true);
         }else
             return null;
 
@@ -535,7 +520,7 @@ public class MainActivity extends AppCompatActivity {
      * Check the type of GPS Provider available at that instance and
      * collect the location informations
      *
-     * @Output Latitude and Longitude
+     * 
      */
     void getMyCurrentLocation() {
 
