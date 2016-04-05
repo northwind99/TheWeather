@@ -7,10 +7,11 @@ import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-        import android.location.Address;
+import android.location.Address;
         import android.location.Geocoder;
 import android.location.LocationListener;
 import android.location.LocationManager;
@@ -91,6 +92,8 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
        // getWindow().setBackgroundDrawableResource(R.drawable.bitmap);
+
+
 
         currentTemperatureField = (TextView) findViewById(R.id.current_temperature_field);
         updatedField = (TextView) findViewById(R.id.updateDateId);
@@ -520,7 +523,7 @@ public class MainActivity extends AppCompatActivity {
      * Check the type of GPS Provider available at that instance and
      * collect the location informations
      *
-     * 
+     *
      */
     void getMyCurrentLocation() {
 
@@ -764,37 +767,41 @@ public class MainActivity extends AppCompatActivity {
         builder.setPositiveButton("Submit", new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialog, int which) {
+
+                SharedPreferences.Editor editor = getSharedPreferences("com.weapp.evan.theweather", MODE_PRIVATE).edit();
+
+
                 CityPreference cityPreference = new CityPreference(MainActivity.this);
                 cityPreference.setCity(cityInput.getText().toString());
 
-                String newCityandNewCountry = null;
-                String cityInputString2 = null;
-
-                String cityInputString = cityInput.getText().toString();
-
-                if (cityInputString.contains(",")) {
-                    String[] cityValue = cityInputString.split(",");
-                    String newCity = cityValue[0];
-                    //  String newCountry = cityValue[1].replaceAll("^\\s+", "");
-                    String newCountry = cityValue[1].trim();
-                    cityInputString2 = newCity + "," + newCountry;
-                    if (validateCity(cityInputString2) && !cityInputString2.isEmpty()) {
-                        cityPreference.setCity(cityInputString2);
-                        newCityandNewCountry = cityPreference.getCity().toString();
-                    }
-                } else if (validateCity(cityInputString)) {
-                    cityPreference.setCity(cityInputString);
-                    newCityandNewCountry = cityPreference.getCity().toString();
-                } else {
-                    newCityandNewCountry = "Toronto,Canada";
-                }
-
-
-                //new CityPreference(MainActivity.this).setCity(cityInput.getText().toString());
-
-                //re-render everything again
-                inputCity.setText(newCityandNewCountry);
-                renderWeatherData(newCityandNewCountry);
+//                String newCityandNewCountry = null;
+//                String cityInputString2 = null;
+//
+//                String cityInputString = cityInput.getText().toString();
+//
+//                if (cityInputString.contains(",")) {
+//                    String[] cityValue = cityInputString.split(",");
+//                    String newCity = cityValue[0];
+//                    //  String newCountry = cityValue[1].replaceAll("^\\s+", "");
+//                    String newCountry = cityValue[1].trim();
+//                    cityInputString2 = newCity + "," + newCountry;
+//                    if (validateCity(cityInputString2) && !cityInputString2.isEmpty()) {
+//                        cityPreference.setCity(cityInputString2);
+//                        newCityandNewCountry = cityPreference.getCity().toString();
+//                    }
+//                } else if (validateCity(cityInputString)) {
+//                    cityPreference.setCity(cityInputString);
+//                    newCityandNewCountry = cityPreference.getCity().toString();
+//                } else {
+//                    newCityandNewCountry = "Toronto,Canada";
+//                }
+//
+//
+//                //new CityPreference(MainActivity.this).setCity(cityInput.getText().toString());
+//
+//                //re-render everything again
+//                inputCity.setText(newCityandNewCountry);
+//                renderWeatherData(newCityandNewCountry);
             }
         });
         builder.show();
