@@ -193,30 +193,30 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
          *
          * @param savedInstanceState The activity state saved in the Bundle.
          */
-        private void updateValuesFromBundle(Bundle savedInstanceState) {
-                if (savedInstanceState != null) {
-                        // Update the value of mRequestingLocationUpdates from the Bundle, and make sure that
-                        // the Start Updates and Stop Updates buttons are correctly enabled or disabled.
-                        if (savedInstanceState.keySet().contains(KEY_REQUESTING_LOCATION_UPDATES)) {
-                                mRequestingLocationUpdates = savedInstanceState.getBoolean(
-                                        KEY_REQUESTING_LOCATION_UPDATES);
-                        }
-
-                        // Update the value of mCurrentLocation from the Bundle and update the UI to show the
-                        // correct latitude and longitude.
-                        if (savedInstanceState.keySet().contains(KEY_LOCATION)) {
-                                // Since KEY_LOCATION was found in the Bundle, we can be sure that mCurrentLocation
-                                // is not null.
-                                mCurrentLocation = savedInstanceState.getParcelable(KEY_LOCATION);
-                        }
-
-//                        // Update the value of mLastUpdateTime from the Bundle and update the UI.
-//                        if (savedInstanceState.keySet().contains(KEY_LAST_UPDATED_TIME_STRING)) {
-//                                mLastUpdateTime = savedInstanceState.getString(KEY_LAST_UPDATED_TIME_STRING);
+//        private void updateValuesFromBundle(Bundle savedInstanceState) {
+//                if (savedInstanceState != null) {
+//                        // Update the value of mRequestingLocationUpdates from the Bundle, and make sure that
+//                        // the Start Updates and Stop Updates buttons are correctly enabled or disabled.
+//                        if (savedInstanceState.keySet().contains(KEY_REQUESTING_LOCATION_UPDATES)) {
+//                                mRequestingLocationUpdates = savedInstanceState.getBoolean(
+//                                        KEY_REQUESTING_LOCATION_UPDATES);
 //                        }
-//                        updateUI();
-                }
-        }
+//
+//                        // Update the value of mCurrentLocation from the Bundle and update the UI to show the
+//                        // correct latitude and longitude.
+//                        if (savedInstanceState.keySet().contains(KEY_LOCATION)) {
+//                                // Since KEY_LOCATION was found in the Bundle, we can be sure that mCurrentLocation
+//                                // is not null.
+//                                mCurrentLocation = savedInstanceState.getParcelable(KEY_LOCATION);
+//                        }
+//
+////                        // Update the value of mLastUpdateTime from the Bundle and update the UI.
+////                        if (savedInstanceState.keySet().contains(KEY_LAST_UPDATED_TIME_STRING)) {
+////                                mLastUpdateTime = savedInstanceState.getString(KEY_LAST_UPDATED_TIME_STRING);
+////                        }
+////                        updateUI();
+//                }
+//        }
 
         private void startApplication(){
                 ConnectivityManager cm = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
