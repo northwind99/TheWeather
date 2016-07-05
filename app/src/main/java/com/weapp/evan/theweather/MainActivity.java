@@ -2,812 +2,826 @@ package com.weapp.evan.theweather;
 
 
 //import android.app.ActionBar;
+import android.app.Activity;
 import android.app.AlertDialog;
-import android.app.ProgressDialog;
+import android.app.Dialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.IntentSender;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.location.Address;
-        import android.location.Geocoder;
+import android.location.Geocoder;
 import android.location.LocationListener;
 import android.location.LocationManager;
 import android.location.Location;
-import android.net.Uri;
-import android.os.AsyncTask;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.os.Build;
 import android.os.Bundle;
 import android.provider.Settings;
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 
-import android.text.InputType;
+import android.support.v7.widget.LinearLayoutManager;
+import android.support.v7.widget.RecyclerView;
 import android.util.Log;
+import android.util.TypedValue;
 import android.view.Menu;
-        import android.view.MenuItem;
-import android.widget.EditText;
+import android.view.MenuItem;
+import android.view.View;
+import android.view.WindowManager;
 import android.widget.ImageView;
 import android.widget.TextView;
 
-        import com.weapp.evan.theweather.model.Weather;
-import com.weapp.evan.theweather.model.WeatherForecast;
-
+import com.android.volley.AuthFailureError;
+import com.android.volley.Request;
+import com.android.volley.Response;
+import com.android.volley.VolleyError;
+import com.android.volley.VolleyLog;
+import com.android.volley.toolbox.StringRequest;
+import com.google.android.gms.common.ConnectionResult;
+import com.google.android.gms.common.api.GoogleApiClient;
+import com.google.android.gms.common.api.PendingResult;
+import com.google.android.gms.common.api.Status;
+import com.google.android.gms.location.LocationSettingsStates;
+import com.google.android.gms.location.LocationSettingsStatusCodes;
+import com.squareup.picasso.Picasso;
+import com.weapp.evan.theweather.entity.Forecast;
+import com.weapp.evan.theweather.http.ApplicationController;
+import com.weapp.evan.theweather.http.Helpers;
+import org.json.JSONArray;
 import org.json.JSONException;
-
-        import java.text.DateFormat;
-import java.util.Date;
-        import java.util.Iterator;
+import org.json.JSONObject;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
-import android.support.v7.app.ActionBar;
+import java.util.Map;
 import android.widget.Toast;
+import com.google.android.gms.common.api.ResultCallback;
+import com.google.android.gms.location.LocationRequest;
+import com.google.android.gms.location.LocationServices;
+import com.google.android.gms.location.LocationSettingsRequest;
+import com.google.android.gms.location.LocationSettingsResult;
 
+public class MainActivity extends AppCompatActivity implements GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener,
+        com.google.android.gms.location.LocationListener, ResultCallback<LocationSettingsResult> {
 
-public class MainActivity extends AppCompatActivity {
+        TextView cityName;
+        TextView updatedTime;
+        TextView currentDegree;
+        TextView minDegree;
+        TextView maxDegree;
+        ImageView iconView;
+        TextView desc;
+        TextView windSpeed;
+        TextView humidity;
+        TextView pressure;
+        ImageView myLocationIcon;
+        private static boolean gps_enabled=false;
+        private static boolean network_enabled=false;
+        static Location location;
+        private static double myLat;
+        private static double myLong;
+        private static String town;
+        private static String state;
+        private static String country;
+        private static String icon;
+        static String townName;
+        private static final String TAG = MainActivity.class.getName();
+        static Context context;
+        private RecyclerView mRecyclerView;
+        private ForecastAdapter forecastAdapter;
+        private static List<Forecast> forecastList;
+        public static final String PREFS_NAME = "AOP_PREFS";
+        public static final String PREFS_KEY = "AOP_PREFS_String";
 
-    //A ProgressDialog object
-    private ProgressDialog progressDialog;
+        /**
+         * Constant used in the location settings dialog.
+         */
+        protected static final int REQUEST_CHECK_SETTINGS = 0x1;
 
+        /**
+         * The desired interval for location updates. Inexact. Updates may be more or less frequent.
+         */
+        public static final long UPDATE_INTERVAL_IN_MILLISECONDS = 10000;
 
-    TextView updatedField;
-    TextView currentTemperatureField;
-    TextView inputCity;
-    ImageView conditionIcons;
-    TextView dayOneTitle;
-    TextView dayOneMin;
-    TextView dayOneMax;
-    TextView currentMin;
-    TextView currentMax;
-    TextView currentWind;
-    TextView currentCondition;
-    TextView currentPressure;
-    TextView currentHumidity;
-    ImageView dayOneIcon;
-    TextView dayTwoTitle;
-    ImageView dayTwoIcon;
-    TextView dayTwoMin;
-    TextView dayTwoMax;
-    TextView dayThreeTitle;
-    ImageView dayThreeIcon;
-    TextView dayThreeMin;
-    TextView dayThreeMax;
-    TextView dayFourTitle;
-    ImageView dayFourIcon;
-    TextView dayFourMin;
-    TextView dayFourMax;
+        /**
+         * The fastest rate for active location updates. Exact. Updates will never be more frequent
+         * than this value.
+         */
+        public static final long FASTEST_UPDATE_INTERVAL_IN_MILLISECONDS =
+                UPDATE_INTERVAL_IN_MILLISECONDS / 2;
 
+        // Keys for storing activity state in the Bundle.
+        protected final static String KEY_REQUESTING_LOCATION_UPDATES = "requesting-location-updates";
+        protected final static String KEY_LOCATION = "location";
+        protected final static String KEY_LAST_UPDATED_TIME_STRING = "last-updated-time-string";
 
-    protected Context context;
+        /**
+         * Provides the entry point to Google Play services.
+         */
+        protected GoogleApiClient mGoogleApiClient;
 
-   // String city = "Toronto";
+        /**
+         * Stores parameters for requests to the FusedLocationProviderApi.
+         */
+        protected LocationRequest mLocationRequest;
 
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
-       // getWindow().setBackgroundDrawableResource(R.drawable.bitmap);
+        /**
+         * Stores the types of location services the client is interested in using. Used for checking
+         * settings to determine if the device has optimal location settings.
+         */
+        protected LocationSettingsRequest mLocationSettingsRequest;
 
-
-
-        currentTemperatureField = (TextView) findViewById(R.id.current_temperature_field);
-        updatedField = (TextView) findViewById(R.id.updateDateId);
-        inputCity = (TextView) findViewById(R.id.cityNameId);
-        conditionIcons = (ImageView) findViewById(R.id.conIcon);
-        dayOneTitle = (TextView) findViewById(R.id.dayOneText);
-        dayOneMin = (TextView) findViewById(R.id.dayOneMinID);
-        dayOneMax = (TextView) findViewById(R.id.dayOneMaxID);
-        currentMin = (TextView) findViewById(R.id.minValue);
-        currentMax = (TextView) findViewById(R.id.maxValue);
-        currentWind = (TextView) findViewById(R.id.windValue);
-        currentCondition = (TextView) findViewById((R.id.conditionValue));
-        currentPressure = (TextView) findViewById((R.id.pressureValue));
-        currentHumidity = (TextView) findViewById((R.id.humidityValue));
-        dayOneIcon = (ImageView) findViewById(R.id.dayOneIconID);
-        dayTwoTitle = (TextView) findViewById(R.id.dayTwoText);
-        dayTwoIcon = (ImageView) findViewById(R.id.dayTwoIconID);
-        dayTwoMin =(TextView) findViewById(R.id.dayTwoMinID);
-        dayTwoMax = (TextView) findViewById(R.id.dayTwoMaxID);
-        dayThreeTitle = (TextView) findViewById(R.id.dayThreeText);
-        dayThreeIcon = (ImageView) findViewById(R.id.dayThreeIconID);
-        dayThreeMin = (TextView) findViewById(R.id.dayThreeMinID);
-        dayThreeMax = (TextView) findViewById(R.id.dayThreeMaxID);
-        dayFourTitle = (TextView) findViewById(R.id.dayFourText);
-        dayFourIcon = (ImageView) findViewById(R.id.dayFourIconID);
-        dayFourMin = (TextView) findViewById(R.id.dayFourMinID);
-        dayFourMax = (TextView) findViewById(R.id.dayFourMaxID);
-
-
-        ActionBar ab = getSupportActionBar();
-        if (ab != null) {
-            ab.setDisplayShowHomeEnabled(true);
-        }
-
-
-        getMyCurrentLocation();
-
-        String cityAndCountry = inputCity.getText().toString();
-       // String[] cityCountry = cityAndCountry.split(",");
-      //  String city = cityCountry[0];
-       // String country = cityCountry[1];
-
-        renderWeatherData(cityAndCountry);
-
-
-    }
-
-    public  void renderWeatherData(String cityAndCountry){
-
-        JSONForecastWeatherTask jsonForecastWeatherTask = new JSONForecastWeatherTask();
-        jsonForecastWeatherTask.execute(new String[]{cityAndCountry});
-
-
-    }
-
-    public Bitmap conditionIcons(String iconValue){
-
-        if("01d".equals(iconValue)){
-            Bitmap bMap = BitmapFactory.decodeResource(getResources(), R.drawable.d01);
-            return Bitmap.createScaledBitmap(bMap, 60, 60, true);
-        }else if("01n".equals(iconValue)){
-            Bitmap bMap = BitmapFactory.decodeResource(getResources(), R.drawable.n01);
-            return Bitmap.createScaledBitmap(bMap, 60, 60, true);
-        }else if("02d".equals(iconValue)){
-            Bitmap bMap = BitmapFactory.decodeResource(getResources(), R.drawable.d02);
-            return Bitmap.createScaledBitmap(bMap, 60, 60, true);
-        }else if("02n".equals(iconValue)){
-            Bitmap bMap = BitmapFactory.decodeResource(getResources(), R.drawable.n02);
-            return Bitmap.createScaledBitmap(bMap, 60, 60, true);
-        }else if("03d".equals(iconValue)){
-            Bitmap bMap = BitmapFactory.decodeResource(getResources(), R.drawable.d03);
-            return Bitmap.createScaledBitmap(bMap, 60, 60, true);
-        }else if("03n".equals(iconValue)){
-            Bitmap bMap = BitmapFactory.decodeResource(getResources(), R.drawable.n03);
-            return Bitmap.createScaledBitmap(bMap, 60, 60, true);
-        }else if("04d".equals(iconValue)){
-            Bitmap bMap = BitmapFactory.decodeResource(getResources(), R.drawable.d04);
-            return Bitmap.createScaledBitmap(bMap, 60, 60, true);
-        }else if("04n".equals(iconValue)){
-            Bitmap bMap = BitmapFactory.decodeResource(getResources(), R.drawable.n04);
-            return Bitmap.createScaledBitmap(bMap, 60, 60, true);
-        }else if("09d".equals(iconValue)){
-            Bitmap bMap = BitmapFactory.decodeResource(getResources(), R.drawable.d09);
-            return Bitmap.createScaledBitmap(bMap, 60, 60, true);
-        }else if("09n".equals(iconValue)){
-            Bitmap bMap = BitmapFactory.decodeResource(getResources(), R.drawable.n09);
-            return Bitmap.createScaledBitmap(bMap, 60, 60, true);
-        }else if("10d".equals(iconValue)){
-            Bitmap bMap = BitmapFactory.decodeResource(getResources(), R.drawable.d10);
-            return Bitmap.createScaledBitmap(bMap, 60, 60, true);
-        }else if("10n".equals(iconValue)){
-            Bitmap bMap = BitmapFactory.decodeResource(getResources(), R.drawable.n10);
-            return Bitmap.createScaledBitmap(bMap, 60, 60, true);
-        }else if("11d".equals(iconValue)){
-            Bitmap bMap = BitmapFactory.decodeResource(getResources(), R.drawable.d11);
-            return Bitmap.createScaledBitmap(bMap, 60, 60, true);
-        }else if("11n".equals(iconValue)){
-            Bitmap bMap = BitmapFactory.decodeResource(getResources(), R.drawable.n11);
-            return Bitmap.createScaledBitmap(bMap, 60, 60, true);
-        }else if("13d".equals(iconValue)){
-            Bitmap bMap = BitmapFactory.decodeResource(getResources(), R.drawable.d13);
-            return Bitmap.createScaledBitmap(bMap, 60, 60, true);
-        }else if("13n".equals(iconValue)){
-            Bitmap bMap = BitmapFactory.decodeResource(getResources(), R.drawable.n13);
-            return Bitmap.createScaledBitmap(bMap, 60, 60, true);
-        }else if("50d".equals(iconValue)){
-            Bitmap bMap = BitmapFactory.decodeResource(getResources(), R.drawable.d50);
-            return Bitmap.createScaledBitmap(bMap, 60, 60, true);
-        }else if("50n".equals(iconValue)){
-            Bitmap bMap = BitmapFactory.decodeResource(getResources(), R.drawable.n50);
-            return Bitmap.createScaledBitmap(bMap, 60, 60, true);
-        }else
-            return null;
-
-    }
-
-    private class JSONWeatherTask extends AsyncTask<String, Void, Weather> {
-
-
+        /**
+         * Represents a geographical location.
+         */
+        protected Location mCurrentLocation;
+        protected Boolean mRequestingLocationUpdates;
 
         @Override
-        protected Weather doInBackground(String... params) {
-
-            Weather weather = new Weather();
-
-            String data = (new WeatherHttpClient()).getWeatherData(params[0]);
-
-
-
-            try {
-                weather = JSONWeatherParser.getWeather(data);
-                weather.iconData = ( (new WeatherHttpClient()).getImage(weather.currentCondition.getIcon()));
-
-
-            } catch (JSONException e) {
-                e.printStackTrace();
-            }
-            return weather;
-
-        }
-
-
-        //Update the progress
-       // @Override
-        protected void onProgressUpdate(Integer... values)
-        {
-            //set the current progress of the progress dialog
-            progressDialog.setProgress(values[0]);
+        protected void onStart() {
+                super.onStart();
+                // Connect the client.
+                mGoogleApiClient.connect();
         }
 
         @Override
-        protected void onPostExecute(Weather weather) {
-            super.onPostExecute(weather);
-
-            currentTemperatureField.setText("" + Math.round((weather.temperature.getTemp() - 273.15)) + "°");
-            DateFormat df = DateFormat.getDateTimeInstance();
-
-            String updatedOn = df.format(weather.temperature.getDt() *1000);
-            updatedField.setText(updatedOn);
-            Log.d("updateOn", updatedOn);
-
-            currentMin.setText("" + (Math.round((weather.temperature.getTemp_min() - 273.15) - 4)) + "°");
-            currentMax.setText("" + (Math.round((weather.temperature.getTemp_max() - 273.15) + 2)) + "°");
-            currentWind.setText("" + weather.currentCondition.getWind() + "mps");
-            currentCondition.setText("" + weather.currentCondition.getCondition());
-            currentPressure.setText("" + weather.currentCondition.getPressure() + "hpa");
-            currentHumidity.setText("" + weather.currentCondition.getHumidity() + "%");
-
-            String iconValue = weather.currentCondition.getIcon().toString();
-
-            if("01d".equals(iconValue)){
-                Bitmap bMap = BitmapFactory.decodeResource(getResources(), R.drawable.d01);
-                Bitmap bMapScaled = Bitmap.createScaledBitmap(bMap, 100, 100, true);
-                conditionIcons.setImageBitmap(bMapScaled);
-            }else if("01n".equals(iconValue)){
-                Bitmap bMap = BitmapFactory.decodeResource(getResources(), R.drawable.n01);
-                Bitmap bMapScaled = Bitmap.createScaledBitmap(bMap, 100, 100, true);
-                conditionIcons.setImageBitmap(bMapScaled);
-            }else if("02d".equals(iconValue)){
-                Bitmap bMap = BitmapFactory.decodeResource(getResources(), R.drawable.d02);
-                Bitmap bMapScaled = Bitmap.createScaledBitmap(bMap, 100, 100, true);
-                conditionIcons.setImageBitmap(bMapScaled);
-            }else if("02n".equals(iconValue)){
-                Bitmap bMap = BitmapFactory.decodeResource(getResources(), R.drawable.n02);
-                Bitmap bMapScaled = Bitmap.createScaledBitmap(bMap, 100, 100, true);
-                conditionIcons.setImageBitmap(bMapScaled);
-            }else if("03d".equals(iconValue)){
-                Bitmap bMap = BitmapFactory.decodeResource(getResources(), R.drawable.d03);
-                Bitmap bMapScaled = Bitmap.createScaledBitmap(bMap, 100, 100, true);
-                conditionIcons.setImageBitmap(bMapScaled);
-            }else if("03n".equals(iconValue)){
-                Bitmap bMap = BitmapFactory.decodeResource(getResources(), R.drawable.n03);
-                Bitmap bMapScaled = Bitmap.createScaledBitmap(bMap, 100, 100, true);
-                conditionIcons.setImageBitmap(bMapScaled);
-            }else if("04d".equals(iconValue)){
-                Bitmap bMap = BitmapFactory.decodeResource(getResources(), R.drawable.d04);
-                Bitmap bMapScaled = Bitmap.createScaledBitmap(bMap, 100, 100, true);
-                conditionIcons.setImageBitmap(bMapScaled);
-            }else if("04n".equals(iconValue)){
-                Bitmap bMap = BitmapFactory.decodeResource(getResources(), R.drawable.n04);
-                Bitmap bMapScaled = Bitmap.createScaledBitmap(bMap, 100, 100, true);
-                conditionIcons.setImageBitmap(bMapScaled);
-            }else if("09d".equals(iconValue)){
-                Bitmap bMap = BitmapFactory.decodeResource(getResources(), R.drawable.d09);
-                Bitmap bMapScaled = Bitmap.createScaledBitmap(bMap, 100, 100, true);
-                conditionIcons.setImageBitmap(bMapScaled);
-            }else if("09n".equals(iconValue)){
-                Bitmap bMap = BitmapFactory.decodeResource(getResources(), R.drawable.n09);
-                Bitmap bMapScaled = Bitmap.createScaledBitmap(bMap, 100, 100, true);
-                conditionIcons.setImageBitmap(bMapScaled);
-            }else if("10d".equals(iconValue)){
-                Bitmap bMap = BitmapFactory.decodeResource(getResources(), R.drawable.d10);
-                Bitmap bMapScaled = Bitmap.createScaledBitmap(bMap, 100, 100, true);
-                conditionIcons.setImageBitmap(bMapScaled);
-            }else if("10n".equals(iconValue)){
-                Bitmap bMap = BitmapFactory.decodeResource(getResources(), R.drawable.n10);
-                Bitmap bMapScaled = Bitmap.createScaledBitmap(bMap, 100, 100, true);
-                conditionIcons.setImageBitmap(bMapScaled);
-            }else if("11d".equals(iconValue)){
-                Bitmap bMap = BitmapFactory.decodeResource(getResources(), R.drawable.d11);
-                Bitmap bMapScaled = Bitmap.createScaledBitmap(bMap, 100, 100, true);
-                conditionIcons.setImageBitmap(bMapScaled);
-            }else if("11n".equals(iconValue)){
-                Bitmap bMap = BitmapFactory.decodeResource(getResources(), R.drawable.n11);
-                Bitmap bMapScaled = Bitmap.createScaledBitmap(bMap, 100, 100, true);
-                conditionIcons.setImageBitmap(bMapScaled);
-            }else if("13d".equals(iconValue)){
-                Bitmap bMap = BitmapFactory.decodeResource(getResources(), R.drawable.d13);
-                Bitmap bMapScaled = Bitmap.createScaledBitmap(bMap, 100, 100, true);
-                conditionIcons.setImageBitmap(bMapScaled);
-            }else if("13n".equals(iconValue)){
-                Bitmap bMap = BitmapFactory.decodeResource(getResources(), R.drawable.n13);
-                Bitmap bMapScaled = Bitmap.createScaledBitmap(bMap, 100, 100, true);
-                conditionIcons.setImageBitmap(bMapScaled);
-            }else if("50d".equals(iconValue)){
-                Bitmap bMap = BitmapFactory.decodeResource(getResources(), R.drawable.d50);
-                Bitmap bMapScaled = Bitmap.createScaledBitmap(bMap, 100, 100, true);
-                conditionIcons.setImageBitmap(bMapScaled);
-            }else if("50n".equals(iconValue)){
-                Bitmap bMap = BitmapFactory.decodeResource(getResources(), R.drawable.n50);
-                Bitmap bMapScaled = Bitmap.createScaledBitmap(bMap, 100, 100, true);
-                conditionIcons.setImageBitmap(bMapScaled);
-            }
-
-
-            /*
-            if (weather.iconData != null && weather.iconData.length > 0) {
-
-               Bitmap img = BitmapFactory.decodeByteArray(weather.iconData, 0, weather.iconData.length);
-               conditionIcons.setImageBitmap(Bitmap.createScaledBitmap(img, 170, 170, false));
-           }
-
-            */
-
-
+        protected void onStop() {
+                // Disconnecting the client invalidates it.
+                mGoogleApiClient.disconnect();
+                super.onStop();
         }
 
-    }
-
-    private class JSONForecastWeatherTask extends AsyncTask<String, Void, WeatherForecast> {
-
-        //Before running code in separate thread
-        @Override
-        protected void onPreExecute()
-        {
-            progressDialog = ProgressDialog.show(MainActivity.this,"Loading",
-                    "Loading View, please wait...", false, false);
-        }
 
         @Override
-        protected WeatherForecast doInBackground(String... params) {
-
-            String data = ((new WeatherHttpClient()).getForecastWeatherData(params[0]));
-            WeatherForecast forecast = new WeatherForecast();
-            try {
-                forecast = JSONWeatherParser.getForecastWeather(data);
-
-              //  System.out.println("Weather [" + forecast + "]");
-                // Let's retrieve the icon
-                //weather.iconData = ( (new WeatherHttpClient()).getImage(weather.currentCondition.getIcon()));
-                forecast.getForecast(0).weather.iconData = ( (new WeatherHttpClient()).getImage(forecast.getForecast(0).weather.currentCondition.getIcon()));
-                forecast.getForecast(1).weather.iconData = ( (new WeatherHttpClient()).getImage(forecast.getForecast(1).weather.currentCondition.getIcon()));
-                forecast.getForecast(2).weather.iconData = ( (new WeatherHttpClient()).getImage(forecast.getForecast(2).weather.currentCondition.getIcon()));
-                forecast.getForecast(3).weather.iconData = ( (new WeatherHttpClient()).getImage(forecast.getForecast(3).weather.currentCondition.getIcon()));
-
-              //  forecast.getForecast(0).weather.iconStringData = forecast.getForecast(0).weather.currentCondition.getIcon();
-
-
-            } catch (JSONException e) {
-                e.printStackTrace();
-            }
-            return forecast;
-
-
+        protected void onCreate(Bundle savedInstanceState) {
+                super.onCreate(savedInstanceState);
+                setContentView(R.layout.activity_main);
+                cityName = (TextView) findViewById(R.id.cityName);
+                updatedTime = (TextView) findViewById(R.id.lastUpdatedTime);
+                currentDegree = (TextView) findViewById(R.id.current_degree);
+                minDegree = (TextView) findViewById(R.id.min_degree);
+                maxDegree = (TextView) findViewById(R.id.max_degree);
+                iconView = (ImageView) findViewById(R.id.icon);
+                desc = (TextView) findViewById(R.id.desc);
+                windSpeed = (TextView) findViewById(R.id.wind_value);
+                humidity = (TextView) findViewById(R.id.humidity_value);
+                pressure = (TextView) findViewById(R.id.pressure_value);
+                myLocationIcon = (ImageView) findViewById(R.id.my_location_id);
+                forecastList = new ArrayList<>();
+                context = this;
+                mRecyclerView = (RecyclerView) findViewById(R.id.recycler_viewID);
+                mRecyclerView.setLayoutManager(new LinearLayoutManager(MainActivity.context));
+                forecastAdapter = new ForecastAdapter(this, forecastList);
+                mRecyclerView.setAdapter(forecastAdapter);
+                mRequestingLocationUpdates = false;
+                startApplication();
         }
 
-        @Override
-        protected void onPostExecute(WeatherForecast forecastWeather) {
-            super.onPostExecute(forecastWeather);
-
-
-            //day one forecast
-            String date = (new Date(forecastWeather.getForecast(1).timestamp * 1000)).toString();
-            String[] date1 = date.split(" ");
-            String dayOneofWeek = date1[0].toUpperCase();
-            dayOneTitle.setText("" + dayOneofWeek);
-
-            String dayOneIconValue = forecastWeather.getForecast(1).weather.currentCondition.getIcon();
-            dayOneIcon.setImageBitmap(conditionIcons(dayOneIconValue));
-
-            /*
-            if (forecastWeather.getForecast(0).weather.iconData != null && forecastWeather.getForecast(0).weather.iconData.length > 0) {
-                    Bitmap forecastImg = BitmapFactory.decodeByteArray(forecastWeather.getForecast(0).weather.iconData, 0, forecastWeather.getForecast(0).weather.iconData.length);
-                    dayOneIcon.setImageBitmap(Bitmap.createScaledBitmap(forecastImg, 60, 60, false));
-            }
-            */
-            dayOneMin.setText("" + Math.round(forecastWeather.getForecast(1).forecastTemp.min) + "°");
-            dayOneMax.setText("" + Math.round(forecastWeather.getForecast(1).forecastTemp.max) + "°");
-
-            //day two forecast;
-            String dayTwoofWeek = ((new Date(forecastWeather.getForecast(2).timestamp * 1000)).toString().split(" "))[0].toUpperCase();
-            dayTwoTitle.setText("" + dayTwoofWeek);
-
-            String dayTwoIconValue = forecastWeather.getForecast(2).weather.currentCondition.getIcon();
-            dayTwoIcon.setImageBitmap(conditionIcons(dayTwoIconValue));
-
-            /*
-            if (forecastWeather.getForecast(1).weather.iconData != null && forecastWeather.getForecast(1).weather.iconData.length > 0) {
-                Bitmap forecastImg = BitmapFactory.decodeByteArray(forecastWeather.getForecast(1).weather.iconData, 0, forecastWeather.getForecast(1).weather.iconData.length);
-                dayTwoIcon.setImageBitmap(Bitmap.createScaledBitmap(forecastImg, 60, 60, false));
-            }
-            */
-            dayTwoMin.setText("" + Math.round(forecastWeather.getForecast(2).forecastTemp.min) + "°");
-            dayTwoMax.setText("" + Math.round(forecastWeather.getForecast(2).forecastTemp.max) + "°");
-
-            //day three forecast
-            String daythreeofWeek = ((new Date(forecastWeather.getForecast(3).timestamp * 1000)).toString().split(" "))[0].toUpperCase();
-            dayThreeTitle.setText("" + daythreeofWeek);
-
-            String dayThreeIconValue = forecastWeather.getForecast(3).weather.currentCondition.getIcon();
-            dayThreeIcon.setImageBitmap(conditionIcons(dayThreeIconValue));
-
-            /*
-            if (forecastWeather.getForecast(2).weather.iconData != null && forecastWeather.getForecast(2).weather.iconData.length > 0) {
-                Bitmap forecastImg = BitmapFactory.decodeByteArray(forecastWeather.getForecast(2).weather.iconData, 0, forecastWeather.getForecast(2).weather.iconData.length);
-                dayThreeIcon.setImageBitmap(Bitmap.createScaledBitmap(forecastImg, 60, 60, false));
-            }
-            */
-            dayThreeMin.setText("" + Math.round(forecastWeather.getForecast(3).forecastTemp.min) + "°");
-            dayThreeMax.setText("" + Math.round(forecastWeather.getForecast(3).forecastTemp.max) + "°");
-
-            //day Four forecast
-            String dayFourofWeek = ((new Date(forecastWeather.getForecast(4).timestamp * 1000)).toString().split(" "))[0].toUpperCase();
-            dayFourTitle.setText("" + dayFourofWeek);
-
-            String dayFourIconValue = forecastWeather.getForecast(4).weather.currentCondition.getIcon();
-            dayFourIcon.setImageBitmap(conditionIcons(dayFourIconValue));
-
-            /*
-            if (forecastWeather.getForecast(3).weather.iconData != null && forecastWeather.getForecast(3).weather.iconData.length > 0) {
-                Bitmap forecastImg = BitmapFactory.decodeByteArray(forecastWeather.getForecast(3).weather.iconData, 0, forecastWeather.getForecast(3).weather.iconData.length);
-                dayFourIcon.setImageBitmap(Bitmap.createScaledBitmap(forecastImg, 60, 60, false));
-            }
-            */
-            dayFourMin.setText("" + Math.round(forecastWeather.getForecast(4).forecastTemp.min) + "°");
-            dayFourMax.setText("" + Math.round(forecastWeather.getForecast(4).forecastTemp.max) + "°");
-
-            String cityAndCountry = inputCity.getText().toString();
-        //    String[] cityCountry = cityAndCountry.split(",");
-         //   String city = cityCountry[0];
-         //   String country = cityCountry[1];
-
-            JSONWeatherTask task = new JSONWeatherTask();
-            task.execute(new String[]{cityAndCountry});
-
-            //close the progress dialog
-            progressDialog.dismiss();
-
-        }
-    }
-
-
-    /** Method to turn on GPS **/
-    public void turnGPSOn(){
-        try
-        {
-
-            String provider = Settings.Secure.getString(getContentResolver(), Settings.Secure.LOCATION_PROVIDERS_ALLOWED);
-
-
-            if(!provider.contains("gps")){ //if gps is disabled
-                final Intent poke = new Intent();
-                poke.setClassName("com.android.settings", "com.android.settings.widget.SettingsAppWidgetProvider");
-                poke.addCategory(Intent.CATEGORY_ALTERNATIVE);
-                poke.setData(Uri.parse("3"));
-                sendBroadcast(poke);
-            }
-        }
-        catch (Exception e) {
-
-        }
-    }
-
-    // Method to turn off the GPS
-    public void turnGPSOff(){
-        String provider = Settings.Secure.getString(getContentResolver(), Settings.Secure.LOCATION_PROVIDERS_ALLOWED);
-
-        if(provider.contains("gps")){ //if gps is enabled
-            final Intent poke = new Intent();
-            poke.setClassName("com.android.settings", "com.android.settings.widget.SettingsAppWidgetProvider");
-            poke.addCategory(Intent.CATEGORY_ALTERNATIVE);
-            poke.setData(Uri.parse("3"));
-            sendBroadcast(poke);
-        }
-    }
-
-    // turning off the GPS if its in on state. to avoid the battery drain.
-    @Override
-    protected void onDestroy() {
-        // TODO Auto-generated method stub
-        super.onDestroy();
-        turnGPSOff();
-    }
-
-
-    /**
-     * Check the type of GPS Provider available at that instance and
-     * collect the location informations
-     *
-     *
-     */
-    void getMyCurrentLocation() {
-
-
-        LocationManager locManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
-        LocationListener locListener = new MyLocationListener();
-
-        if ( Build.VERSION.SDK_INT >= 23 &&
-                ContextCompat.checkSelfPermission( context, android.Manifest.permission.ACCESS_FINE_LOCATION ) != PackageManager.PERMISSION_GRANTED &&
-                ContextCompat.checkSelfPermission(context, android.Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            return;
-        }
-
-
-        try {
-            gps_enabled = locManager.isProviderEnabled(LocationManager.GPS_PROVIDER);
-        } catch (Exception ex) {
-        }
-        try {
-            network_enabled = locManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER);
-        } catch (Exception ex) {
-        }
-
-        //don't start listeners if no provider is enabled
-        //if(!gps_enabled && !network_enabled)
-        //return false;
-
-        if (gps_enabled) {
-            locManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, locListener);
-
-        }
-
-
-        if (gps_enabled) {
-            location = locManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
-
-
-        }
-
-
-        if (network_enabled && location == null) {
-            locManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 0, 0, locListener);
-
-        }
-
-
-        if (network_enabled && location == null) {
-            location = locManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
-
-        }
-
-        if (location != null) {
-
-            MyLat = location.getLatitude();
-            MyLong = location.getLongitude();
-
-
-        } else {
-            Location loc = getLastKnownLocation(this);
-            if (loc != null) {
-
-                MyLat = loc.getLatitude();
-                MyLong = loc.getLongitude();
-
-
-            }
-        }
-        locManager.removeUpdates(locListener); // removes the periodic updates from location listener to //avoid battery drainage. If you want to get location at the periodic intervals call this method using //pending intent.
-
-        try {
-// Getting address from found locations.
-            Geocoder geocoder;
-
-            List<Address> addresses;
-            geocoder = new Geocoder(this, Locale.getDefault());
-            addresses = geocoder.getFromLocation(MyLat, MyLong, 1);
-
-            stateName = addresses.get(0).getAdminArea();
-            cityName = addresses.get(0).getSubLocality();
-
-            if(addresses.get(0).getSubLocality() != null){
-                cityName = addresses.get(0).getSubLocality();
-            }else if(addresses.get(0).getLocality() != null){
-                cityName = addresses.get(0).getLocality();
-            }else if(addresses.get(0).getSubAdminArea() != null){
-                cityName = addresses.get(0).getSubAdminArea();
-            }else{
-                cityName ="Toronto";
-            }
-
-            countryName = addresses.get(0).getCountryName();
-
-
-            // you can get more details other than this . like country code, state code, etc.
-
-            inputCity.setText(cityName + "," + countryName );
-
-            System.out.println(" StateName " + stateName);
-            System.out.println(" CityName " + cityName);
-            System.out.println(" CountryName " + countryName);
-
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
-    // Location listener class. to get location.
-    public class MyLocationListener implements LocationListener {
-        public void onLocationChanged(Location location) {
-            if (location != null) {
-            }
-        }
-
-        public void onProviderDisabled(String provider) {
-            // TODO Auto-generated method stub
-        }
-
-        public void onProviderEnabled(String provider) {
-            // TODO Auto-generated method stub
-        }
-
-        public void onStatusChanged(String provider, int status, Bundle extras) {
-            // TODO Auto-generated method stub
-        }
-    }
-
-    private boolean gps_enabled=false;
-    private boolean network_enabled=false;
-    Location location;
-
-    Double MyLat, MyLong;
-    String cityName="";
-    String stateName="";
-    String countryName="";
-
-
-// below method to get the last remembered location. because we don't get locations all the times .At some instances we are unable to get the location from GPS. so at that moment it will show us the last stored location.
-
-    public static Location getLastKnownLocation(Context context)
-    {
-        Location location = null;
-        LocationManager locationmanager = (LocationManager)context.getSystemService(context.LOCATION_SERVICE);
-
-        if ( Build.VERSION.SDK_INT >= 23 &&
-                ContextCompat.checkSelfPermission( context, android.Manifest.permission.ACCESS_FINE_LOCATION ) != PackageManager.PERMISSION_GRANTED &&
-                ContextCompat.checkSelfPermission(context, android.Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            //return;
-        }
-
-        List list = locationmanager.getAllProviders();
-        boolean i = false;
-        Iterator iterator = list.iterator();
-        do
-        {
-            //System.out.println("---------------------------------------------------------------------");
-            if(!iterator.hasNext())
-                break;
-            String s = (String)iterator.next();
-
-            if(i != false && !locationmanager.isProviderEnabled(s))
-                continue;
-            // System.out.println("provider ===> "+s);
-
-            Location location1 = locationmanager.getLastKnownLocation(s);
-
-
-
-            if(location1 == null)
-                continue;
-            if(location != null)
-            {
-                //System.out.println("location ===> "+location);
-                //System.out.println("location1 ===> "+location);
-                float f = location.getAccuracy();
-                float f1 = location1.getAccuracy();
-                if(f >= f1)
-                {
-                    long l = location1.getTime();
-                    long l1 = location.getTime();
-                    if(l - l1 <= 600000L)
-                        continue;
+        /**
+         * Updates fields based on data stored in the bundle.
+         *
+         * @param savedInstanceState The activity state saved in the Bundle.
+         */
+        private void updateValuesFromBundle(Bundle savedInstanceState) {
+                if (savedInstanceState != null) {
+                        // Update the value of mRequestingLocationUpdates from the Bundle, and make sure that
+                        // the Start Updates and Stop Updates buttons are correctly enabled or disabled.
+                        if (savedInstanceState.keySet().contains(KEY_REQUESTING_LOCATION_UPDATES)) {
+                                mRequestingLocationUpdates = savedInstanceState.getBoolean(
+                                        KEY_REQUESTING_LOCATION_UPDATES);
+                        }
+
+                        // Update the value of mCurrentLocation from the Bundle and update the UI to show the
+                        // correct latitude and longitude.
+                        if (savedInstanceState.keySet().contains(KEY_LOCATION)) {
+                                // Since KEY_LOCATION was found in the Bundle, we can be sure that mCurrentLocation
+                                // is not null.
+                                mCurrentLocation = savedInstanceState.getParcelable(KEY_LOCATION);
+                        }
+
+//                        // Update the value of mLastUpdateTime from the Bundle and update the UI.
+//                        if (savedInstanceState.keySet().contains(KEY_LAST_UPDATED_TIME_STRING)) {
+//                                mLastUpdateTime = savedInstanceState.getString(KEY_LAST_UPDATED_TIME_STRING);
+//                        }
+//                        updateUI();
                 }
-            }
-            location = location1;
-            // System.out.println("location  out ===> "+location);
-            //System.out.println("location1 out===> "+location);
-            i = locationmanager.isProviderEnabled(s);
-            // System.out.println("---------------------------------------------------------------------");
-        } while(true);
-        return location;
-    }
+        }
 
+        private void startApplication(){
+                ConnectivityManager cm = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+                NetworkInfo info = cm.getActiveNetworkInfo();
 
-    @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
-        // Inflate the menu; this adds items to the action bar if it is present.
-        getMenuInflater().inflate(R.menu.menu_main, menu);
-        return true;
-    }
+                if (info != null) {
+                        if (!info.isConnected()) {
+                                Toast.makeText(this,
+                                        "Please check your internet connection and try again.",
+                                        Toast.LENGTH_LONG).show();
 
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        // Handle action bar item clicks here. The action bar will
-        // automatically handle clicks on the Home/Up button, so long
-        // as you specify a parent activity in AndroidManifest.xml.
-        int id = item.getItemId();
+                        } else{
+                                Intent intent = getIntent();
+                                String location_name = intent.getStringExtra("location");
+                                getMyCurrentLocation();
+                                getCity();
+                                String endPoint;
+                                String endPoint_forecast;
 
-        //noinspection SimplifiableIfStatement
-        if (id == R.id.change_cityId) {
+                                if(location_name != null){
+                                        StringBuilder city_name = new StringBuilder();
+                                        StringBuilder state_name = new StringBuilder();
+                                        StringBuilder country_name = new StringBuilder();
+                                        String strArray[] = location_name.split("");
+                                        for(int i = 0; i < strArray.length; i++){
+                                                if(!strArray[i].equals(",")){
+                                                        city_name.append(strArray[i]);
+                                                }else
+                                                        break;
+                                        }
+                                        //  if(country_name.equals("")){
+                                        endPoint = Helpers.BASE_URL + city_name + "," + Helpers.key;
+                                        endPoint_forecast = Helpers.FORECAST_URL + city_name + "," + Helpers.FORECAST_LENGTH + Helpers.key;
+                                        cityName.setText(city_name);
+                                        savePref(context, city_name.toString());
+//                                         }else{
+//                                                 endPoint = Helpers.BASE_URL + city_name + "," + country_name + Helpers.key;
+//                                                 endPoint_forecast = Helpers.FORECAST_URL + city_name + "," + country_name + Helpers.FORECAST_LENGTH + Helpers.key;
+//                                                 cityName.setText(city_name + "," + state_name);
+//                                                 savePref(context, city_name + "," + state_name);
+//                                         }
+                                }else if(getPref(context) != null){
+                                        String locationName = getPref(context).replaceAll("\\s+", "");
+                                        endPoint = Helpers.BASE_URL + locationName + Helpers.key;
+                                        endPoint_forecast = Helpers.FORECAST_URL + locationName + Helpers.FORECAST_LENGTH + Helpers.key;
+                                        cityName.setText(getPref(context));
+                                }else{
+                                        // String townName;
+                                        townName = town.replaceAll("\\s+", "");
+                                        endPoint = Helpers.BASE_URL + townName + "," + country + Helpers.key;
+                                        //  getCurrentWeather(endPoint);
+                                        endPoint_forecast = Helpers.FORECAST_URL + townName + "," + country + Helpers.FORECAST_LENGTH + Helpers.key;
+                                        cityName.setText(town + ", " + state);
+                                }
+                                getCurrentWeather(endPoint);
+                                if (forecastList.isEmpty())
+                                        getForecast(endPoint_forecast);
+                        }
+                }
 
-            showInputDialog();
+                myLocationIcon.setOnClickListener(new View.OnClickListener() {
+                        @Override
+                        public void onClick(View v) {
+                                getMyLocation();
+                        }
+                });
+        }
+
+        private void settingRequest(){
+                if (mGoogleApiClient == null) {
+                        mGoogleApiClient = new GoogleApiClient.Builder(this)
+                                .addApi(LocationServices.API)
+                                .addConnectionCallbacks(this)
+                                .addOnConnectionFailedListener(this).build();
+                        mGoogleApiClient.connect();
+
+                        LocationRequest locationRequest = LocationRequest.create();
+                        locationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
+                        locationRequest.setInterval(30 * 1000);
+                        locationRequest.setFastestInterval(5 * 1000);
+                        LocationSettingsRequest.Builder builder = new LocationSettingsRequest.Builder()
+                                .addLocationRequest(locationRequest);
+
+                        //**************************
+                        builder.setAlwaysShow(true); //this is the key ingredient
+                        //**************************
+
+                        PendingResult<LocationSettingsResult> result =
+                                LocationServices.SettingsApi.checkLocationSettings(mGoogleApiClient, builder.build());
+                        result.setResultCallback(new ResultCallback<LocationSettingsResult>() {
+                                @Override
+                                public void onResult(LocationSettingsResult result) {
+                                        final Status status = result.getStatus();
+                                        final LocationSettingsStates state = result.getLocationSettingsStates();
+                                        switch (status.getStatusCode()) {
+                                                case LocationSettingsStatusCodes.SUCCESS:
+                                                        // All location settings are satisfied. The client can initialize location
+                                                        // requests here.
+                                                        break;
+                                                case LocationSettingsStatusCodes.RESOLUTION_REQUIRED:
+                                                        // Location settings are not satisfied. But could be fixed by showing the user
+                                                        // a dialog.
+                                                        try {
+                                                                // Show the dialog by calling startResolutionForResult(),
+                                                                // and check the result in onActivityResult().
+                                                                status.startResolutionForResult(
+                                                                        MainActivity.this, REQUEST_CHECK_SETTINGS);
+                                                        } catch (IntentSender.SendIntentException e) {
+                                                                // Ignore the error.
+                                                        }
+                                                        break;
+                                                case LocationSettingsStatusCodes.SETTINGS_CHANGE_UNAVAILABLE:
+                                                        // Location settings are not satisfied. However, we have no way to fix the
+                                                        // settings so we won't show the dialog.
+                                                        break;
+                                        }
+                                }
+                        });             }
+        }
+
+//        @Override
+//        protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+//                switch (requestCode) {
+//// Check for the integer request code originally supplied to startResolutionForResult().
+//                        case REQUEST_CHECK_SETTINGS:
+//                                switch (resultCode) {
+//                                        case Activity.RESULT_OK:
+//                                                startApplication();
+//                                                break;
+//                                        case Activity.RESULT_CANCELED:
+//                                                settingRequest();//keep asking if imp or do whatever
+//                                                break;
+//                                }
+//                                break;
+//                }
+//        }
+
+        private void getMyLocation(){
+                getMyCurrentLocation();
+                getCity();
+                String endPoint;
+                String endPoint_forecast;
+                townName = town.replaceAll("\\s+", "");
+                endPoint = Helpers.BASE_URL + townName + "," + country + Helpers.key;
+                getCurrentWeather(endPoint);
+                endPoint_forecast = Helpers.FORECAST_URL + townName + "," + country + Helpers.FORECAST_LENGTH + Helpers.key;
+                cityName.setText(town + ", " + state);
+                savePref(context, town + ", " + state);
+                getCurrentWeather(endPoint);
+                forecastList.clear();
+                getForecast(endPoint_forecast);
+                Log.v(TAG, "latitude: " + myLat + ", longitude: " + myLong);
+        }
+
+        private void getCurrentWeather(String endpoint){
+                StringRequest jsonObjRequest = new StringRequest(Request.Method.GET,
+                        endpoint,new Response.Listener<String>() {
+                        @Override
+                        public void onResponse(String response) {
+                                Log.v(TAG, response + "volley response");
+                                try {
+                                        getCurrentWeatherData(new JSONObject(response));
+                                } catch (JSONException e) {
+                                        e.printStackTrace();
+                                }
+                        }
+                }, new Response.ErrorListener() {
+                        @Override
+                        public void onErrorResponse(VolleyError error) {
+                                VolleyLog.d("volley", "Error: " + error.getMessage());
+                                error.printStackTrace();
+                                Toast.makeText(getBaseContext(), "Oops! Something went wrong", Toast.LENGTH_LONG).show();
+                        }
+                }) {
+                        @Override
+                        public String getBodyContentType() {
+                                return "application/x-www-form-urlencoded; charset=UTF-8";
+                        }
+
+                        @Override
+                        public Map<String, String> getHeaders() throws AuthFailureError {
+                                HashMap<String, String> headers = new HashMap<String, String>();
+                                return headers;
+                        }
+
+                        @Override
+                        protected Map<String, String> getParams() throws AuthFailureError {
+                                Map<String, String> params = new HashMap<String, String>();
+                                return params;
+                        }
+
+                };
+                ApplicationController.getInstance().addToRequestQueue(jsonObjRequest);
 
         }
 
-        return super.onOptionsItemSelected(item);
-    }
+        private void getCurrentWeatherData(JSONObject jsonObject) {
 
-    public static boolean validateCity( String city){
+                double temp;
+                double temp_min;
+                double temp_max;
+                JSONObject weatherMainObject;
+                JSONObject weatheWindObject;
+                long dt;
+                long unixTime = System.currentTimeMillis() / 1000L;
+                String description;
+                float speed;
+                int pressure_value;
+                int humidity_value;
 
-        Pattern p = Pattern.compile("^[a-zA-Z]+(?:(?:\\s+|-)[a-zA-Z]+)*$");
-        Pattern p2 = Pattern.compile("[a-z]+(,\\s*[a-z]+)*");
-        Matcher m = p.matcher(city);
-        Matcher m2 = p2.matcher(city);
-        if (m.find()){
-            return true;
-        }else if(m2.find()){
-            return true;
-        }else
-            return false;
-    }
+                try {
+                        weatherMainObject = jsonObject.getJSONObject("main");
+                        weatheWindObject = jsonObject.getJSONObject("wind");
+                        JSONArray jsonArray = jsonObject.getJSONArray("weather");
+                        JSONObject weatherObject = jsonArray.getJSONObject(0);
+                        icon = weatherObject.getString("icon");
+                        description = weatherObject.getString("description");
+                        speed = weatheWindObject.getLong("speed");
+                        //speed from m/s to km/h
+                        speed = (speed * 3600) /1000;
+                        pressure_value = weatherMainObject.getInt("pressure");
+                        humidity_value = weatherMainObject.getInt("humidity");
+
+                        if(icon.equals("01d")) {
+                                Picasso.with(context).load(R.drawable.sunny).into(iconView);
+                        }else if(icon.equals("02d")) {
+                                Picasso.with(context).load(R.drawable.dfewcloud).into(iconView);
+                        }else if(icon.equals("03d")) {
+                                Picasso.with(context).load(R.drawable.clouds).into(iconView);
+                        }else if(icon.equals("04d")) {
+                                Picasso.with(context).load(R.drawable.clouds).into(iconView);
+                        }else if(icon.equals("09d")) {
+                                Picasso.with(context).load(R.drawable.rain).into(iconView);
+                        }else if(icon.equals("10d")) {
+                                Picasso.with(context).load(R.drawable.rain).into(iconView);
+                        }else if(icon.equals("11d")) {
+                                Picasso.with(context).load(R.drawable.dstorm).into(iconView);
+                        }else if(icon.equals("13d")) {
+                                Picasso.with(context).load(R.drawable.dsnowing).into(iconView);
+                        }else if(icon.equals("50d")) {
+                                Picasso.with(context).load(R.drawable.dhaze).into(iconView);
+                        }else if(icon.equals("01n")) {
+                                Picasso.with(context).load(R.drawable.moon).into(iconView);
+                        }else if(icon.equals("02n")) {
+                                Picasso.with(context).load(R.drawable.nfewcloud).into(iconView);
+                        }else if(icon.equals("03n")) {
+                                Picasso.with(context).load(R.drawable.clouds).into(iconView);
+                        }else if(icon.equals("04n")) {
+                                Picasso.with(context).load(R.drawable.clouds).into(iconView);
+                        }else if(icon.equals("09n")) {
+                                Picasso.with(context).load(R.drawable.rain).into(iconView);
+                        }else if(icon.equals("10n")) {
+                                Picasso.with(context).load(R.drawable.rain).into(iconView);
+                        }else if(icon.equals("11n")) {
+                                Picasso.with(context).load(R.drawable.nstorm).into(iconView);
+                        }else if(icon.equals("13n")) {
+                                Picasso.with(context).load(R.drawable.nsnow).into(iconView);
+                        }else if(icon.equals("50n")) {
+                                Picasso.with(context).load(R.drawable.nhaze).into(iconView);
+                        }
+
+                        Log.v(TAG, weatherObject + "weather object value");
+                        temp = weatherMainObject.getDouble("temp");
+                        temp_min = weatherMainObject.getDouble("temp_min");
+                        temp_max = weatherMainObject.getDouble("temp_max");
+                        temp = temp - 273.15;
+                        temp_min = temp_min - 273.15;
+                        temp_max = temp_max - 273.15;
+                        currentDegree.setText(Math.round(temp) + "°");
+                        maxDegree.setText(Math.round(temp_max) + "°" );
+                        minDegree.setText(Math.round(temp_min) + "°");
+                        dt = jsonObject.getLong("dt");
+                        updatedTime.setText(Math.round((unixTime - dt) * 0.0166667)  + " mins ago");
+                        desc.setText(description);
+                        windSpeed.setText(speed + "km/h");
+                        pressure.setText(Math.round(pressure_value / 10) + "kPa");
+                        humidity.setText(humidity_value + "%");
 
 
-    private void showInputDialog() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
-        builder.setTitle("Enter City,Country");
+                } catch (JSONException e) {
+                        Toast.makeText(this, "data not found", Toast.LENGTH_LONG).show();
+                }
+        }
 
-        final EditText cityInput = new EditText(MainActivity.this);
-        cityInput.setInputType(InputType.TYPE_CLASS_TEXT);
-        cityInput.setHint("Toronto,Canada");
-        builder.setView(cityInput);
-        builder.setPositiveButton("Submit", new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialog, int which) {
+        private void getForecast(String endpoint_forecast){
+                StringRequest jsonObjRequest = new StringRequest(Request.Method.GET,
+                        endpoint_forecast,new Response.Listener<String>() {
+                        @Override
+                        public void onResponse(String response) {
+                                Log.v(TAG, response + "forecast response");
+                                try {
+                                        getForecastData(new JSONObject(response));
+                                } catch (JSONException e) {
+                                        e.printStackTrace();
+                                }
+                        }
+                }, new Response.ErrorListener() {
+                        @Override
+                        public void onErrorResponse(VolleyError error) {
+                                VolleyLog.d("volley", "Error: " + error.getMessage());
+                                error.printStackTrace();
+                                Toast.makeText(getBaseContext(), "Oops! Something went wrong", Toast.LENGTH_LONG).show();
+                        }
+                }) {
+                        @Override
+                        public String getBodyContentType() {
+                                return "application/x-www-form-urlencoded; charset=UTF-8";
+                        }
 
-                SharedPreferences.Editor editor = getSharedPreferences("com.weapp.evan.theweather", MODE_PRIVATE).edit();
+                        @Override
+                        public Map<String, String> getHeaders() throws AuthFailureError {
+                                HashMap<String, String> headers = new HashMap<String, String>();
+                                return headers;
+                        }
+
+                        @Override
+                        protected Map<String, String> getParams() throws AuthFailureError {
+                                Map<String, String> params = new HashMap<String, String>();
+                                return params;
+                        }
+
+                };
+                ApplicationController.getInstance().addToRequestQueue(jsonObjRequest);
+
+        }
+
+        private void getForecastData(JSONObject jsonObject) {
+                Forecast forecast;
+                long dt;
+                String date_to_week = null;
+                String icon_forecast;
+                int max;
+                int min;
+                int day_of_week;
+                JSONArray jsonArray = null;
+                try {
+                        jsonArray = jsonObject.getJSONArray("list");
+                        for (int i = 1; i < jsonArray.length(); i++) {
+                                JSONObject dataObject = jsonArray.getJSONObject(i);
+                                JSONObject tempObject = dataObject.getJSONObject("temp");
+                                JSONArray weatherArray = dataObject.getJSONArray("weather");
+                                dt = dataObject.getLong("dt");
+                                //start converting dt to day of week
+                                long timestamp = dt * 1000l;
+                                Calendar cal = Calendar.getInstance();
+                                cal.setTimeInMillis(timestamp);
+                                day_of_week = cal.get(Calendar.DAY_OF_WEEK);
+                                switch (day_of_week){
+                                        case 1:
+                                                date_to_week = "Sunday";
+                                                break;
+                                        case 2:
+                                                date_to_week = "Monday";
+                                                break;
+                                        case 3:
+                                                date_to_week = "Tuesday";
+                                                break;
+                                        case 4:
+                                                date_to_week = "Wednesday";
+                                                break;
+                                        case 5:
+                                                date_to_week = "Thursday";
+                                                break;
+                                        case 6:
+                                                date_to_week = "Friday";
+                                                break;
+                                        case 7:
+                                                date_to_week = "Saturday";
+                                                break;
+                                }//end
+
+                                max = (int) Math.round(tempObject.getDouble("max"));
+                                min = (int) Math.round(tempObject.getDouble("min"));
+                                icon_forecast = weatherArray.getJSONObject(0).getString("icon");
+
+                                forecast = new Forecast(date_to_week, icon_forecast, max, min);
+                                forecastList.add(forecast);
+                        }
+                        forecastAdapter.notifyDataSetChanged();
+                } catch (JSONException e) {
+                        e.printStackTrace();
+                }
 
 
-                CityPreference cityPreference = new CityPreference(MainActivity.this);
-                cityPreference.setCity(cityInput.getText().toString());
+        }
 
-//                String newCityandNewCountry = null;
-//                String cityInputString2 = null;
-//
-//                String cityInputString = cityInput.getText().toString();
-//
-//                if (cityInputString.contains(",")) {
-//                    String[] cityValue = cityInputString.split(",");
-//                    String newCity = cityValue[0];
-//                    //  String newCountry = cityValue[1].replaceAll("^\\s+", "");
-//                    String newCountry = cityValue[1].trim();
-//                    cityInputString2 = newCity + "," + newCountry;
-//                    if (validateCity(cityInputString2) && !cityInputString2.isEmpty()) {
-//                        cityPreference.setCity(cityInputString2);
-//                        newCityandNewCountry = cityPreference.getCity().toString();
-//                    }
-//                } else if (validateCity(cityInputString)) {
-//                    cityPreference.setCity(cityInputString);
-//                    newCityandNewCountry = cityPreference.getCity().toString();
-//                } else {
-//                    newCityandNewCountry = "Toronto,Canada";
-//                }
-//
-//
-//                //new CityPreference(MainActivity.this).setCity(cityInput.getText().toString());
-//
-//                //re-render everything again
-//                inputCity.setText(newCityandNewCountry);
-//                renderWeatherData(newCityandNewCountry);
-            }
-        });
-        builder.show();
-    }
+        private void getCity(){
+                Geocoder myLocation = new Geocoder(getApplicationContext(), Locale.getDefault());
+                try {
+                        List<Address> myList = myLocation.getFromLocation(myLat, myLong, 1);
+                        String result;
+
+                        if (myList != null && myList.size() > 0) {
+                                Address address = myList.get(0);
+                            //    String streetName = address.getAddressLine(0);
+                                town = address.getLocality();
+                                state = address.getAdminArea();
+                                country = address.getCountryName();
+                                if (town == null) {
+                                        town = address.getSubLocality();
+                                }
+                                //show game detail address above map when user click on the map
+                        }
+                } catch (IOException e) {
+                        Toast.makeText(this, "city not found", Toast.LENGTH_LONG).show();
+                }
+        }
+
+        //save SharedPreference
+        public void savePref(Context context, String text) {
+                SharedPreferences settings;
+                SharedPreferences.Editor editor;
+                settings = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE); //1
+                editor = settings.edit(); //2
+
+                editor.putString(PREFS_KEY, text); //3
+                editor.commit(); //4
+        }
+
+        //get SharedPreference
+        public String getPref(Context context) {
+                SharedPreferences settings;
+                String text;
+                settings = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE); //1
+                text = settings.getString(PREFS_KEY, null); //2
+                return text;
+        }
 
 
+        /**
+         * Check the type of GPS Provider available at that instance and
+         * collect the location information
+         *
+         * @Output Latitude and Longitude
+         */
+        public static void getMyCurrentLocation() {
+
+                LocationManager locManager = (LocationManager) context.getSystemService(Context.LOCATION_SERVICE);
+                LocationListener locListener = new MyLocationListener();
+                Log.wtf("Location", "Start");
+
+                if ( Build.VERSION.SDK_INT >= 23 &&
+                        ContextCompat.checkSelfPermission(context, android.Manifest.permission.ACCESS_FINE_LOCATION ) != PackageManager.PERMISSION_GRANTED &&
+                        ContextCompat.checkSelfPermission(context, android.Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                        return;
+                }
+
+
+                try {
+                        gps_enabled = locManager.isProviderEnabled(LocationManager.GPS_PROVIDER);
+                } catch (Exception ex) {
+                        ex.printStackTrace();
+                }
+                try {
+                        network_enabled = locManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER);
+                } catch (Exception ex) {
+                        ex.printStackTrace();
+                }
+
+                if (gps_enabled) {
+                        locManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, locListener);
+                }
+
+                if (gps_enabled) {
+                        location = locManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
+                }
+
+                if (network_enabled && location == null) {
+                        locManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 0, 0, locListener);
+                }
+
+                if (network_enabled && location == null) {
+                        location = locManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
+                }
+
+                if (location != null) {
+
+                        myLat = location.getLatitude();
+                        myLong = location.getLongitude();
+                } else {
+                        Location loc = getLastKnownLocation(context);
+                        if (loc != null) {
+                                myLat = loc.getLatitude();
+                                myLong = loc.getLongitude();
+                        }
+                }
+                locManager.removeUpdates((android.location.LocationListener) locListener);
+        }
+
+        @Override
+        public void onConnected(@Nullable Bundle bundle) {
+
+        }
+
+        @Override
+        public void onConnectionSuspended(int i) {
+
+        }
+
+        @Override
+        public void onLocationChanged(Location location) {
+
+        }
+
+
+
+        @Override
+        public void onConnectionFailed(@NonNull ConnectionResult connectionResult) {
+
+        }
+
+        @Override
+        public void onResult(@NonNull LocationSettingsResult locationSettingsResult) {
+
+        }
+
+        // Location listener class. to get location.
+        public static class MyLocationListener implements LocationListener {
+                public void onLocationChanged(Location location) {
+                        if (location != null) {
+                                myLat = location.getLatitude();
+                                myLong = location.getLongitude();
+                        }
+                }
+
+                public void onProviderDisabled(String provider) {
+                        // TODO Auto-generated method stub
+                }
+
+                public void onProviderEnabled(String provider) {
+                        // TODO Auto-generated method stub
+                }
+
+                public void onStatusChanged(String provider, int status, Bundle extras) {
+                        // TODO Auto-generated method stub
+                }
+        }
+
+        public static Location getLastKnownLocation(Context context){
+                Location location = null;
+                LocationManager locationmanager = (LocationManager)context.getSystemService(context.LOCATION_SERVICE);
+
+                if ( Build.VERSION.SDK_INT >= 23 &&
+                        ContextCompat.checkSelfPermission( context, android.Manifest.permission.ACCESS_FINE_LOCATION ) != PackageManager.PERMISSION_GRANTED &&
+                        ContextCompat.checkSelfPermission(context, android.Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                        //return;
+                }
+
+                List list = locationmanager.getAllProviders();
+                boolean i = false;
+                Iterator iterator = list.iterator();
+                do
+                {
+                        if(!iterator.hasNext())
+                                break;
+                        String s = (String)iterator.next();
+
+                        if(i != false && !locationmanager.isProviderEnabled(s))
+                                continue;
+
+                        Location location1 = locationmanager.getLastKnownLocation(s);
+
+                        if(location1 == null)
+                                continue;
+                        if(location != null)
+                        {
+                                float f = location.getAccuracy();
+                                float f1 = location1.getAccuracy();
+                                if(f >= f1)
+                                {
+                                        long l = location1.getTime();
+                                        long l1 = location.getTime();
+                                        if(l - l1 <= 600000L)
+                                                continue;
+                                }
+                        }
+                        location = location1;
+                        i = locationmanager.isProviderEnabled(s);
+                } while(true);
+                return location;
+        }
+
+        @Override
+        public boolean onCreateOptionsMenu(Menu menu) {
+                getMenuInflater().inflate(R.menu.menu_main, menu);
+                return true;
+        }
+
+        @Override
+        public boolean onOptionsItemSelected(MenuItem item) {
+                Intent i = new Intent(context, EnterLocationActivity.class);
+                startActivity(i);
+                finish();
+                return super.onOptionsItemSelected(item);
+        }
+
+        @Override
+        public void onBackPressed() {
+                super.onBackPressed();
+                finish();
+        }
+
+        @Override
+        protected void onResume() {
+                super.onResume();
+        }
 }
 
 
