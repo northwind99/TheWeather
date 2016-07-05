@@ -2,7 +2,6 @@
     <string name="app_name">LocalWeather</string>
     <string name="action_settings">Change City</string>
     <string name="city_name">"Toronto, Canada"</string>
-    <string name="Last_update">Last update: </string>
     <string name="open_weather_maps_app_id">5229a831e5dad59d47e92e8f9260e606</string>
     <string name="current_temperature">"Current Temperature:"</string>
     <string name="windText">"Wind: "</string>

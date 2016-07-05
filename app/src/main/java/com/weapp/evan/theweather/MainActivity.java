@@ -185,6 +185,7 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
                 mRecyclerView.setAdapter(forecastAdapter);
                 mRequestingLocationUpdates = false;
                 startApplication();
+                Log.v(TAG, "test");
         }
 
         /**

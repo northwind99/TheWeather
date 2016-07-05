@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="60dp"
+        android:id="@+id/info_layout">
+
+    <TextView
+        android:layout_width="100dp"
+        android:layout_height="60dp"
+        android:id="@+id/date_to_week"
+        android:layout_alignParentLeft="true"
+        android:textColor="@color/white"
+        android:gravity="center"/>
+
+    <ImageView
+        android:layout_width="wrap_content"
+        android:layout_height="60dp"
+        android:id="@+id/forecast_icon"
+        android:layout_marginLeft="40dp"
+        android:layout_toRightOf="@id/date_to_week"
+        android:src="@drawable/d01"/>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="60dp"
+        android:id="@+id/forecast_max"
+        android:gravity="center"
+        android:textColor="@color/white"
+        android:layout_marginLeft="40dp"
+        android:layout_toRightOf="@id/forecast_icon" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="60dp"
+        android:id="@+id/forecast_min"
+        android:textColor="@color/white"
+        android:gravity="center"
+        android:layout_marginLeft="20dp"
+        android:layout_toRightOf="@id/forecast_max" />
+    </RelativeLayout>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="@android:color/darker_gray"
+        android:layout_below="@+id/info_layout"
+        android:layout_alignLeft="@id/info_layout"/>
+
+</RelativeLayout>
