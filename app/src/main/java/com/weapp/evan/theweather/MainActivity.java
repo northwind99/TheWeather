@@ -2,38 +2,29 @@ package com.weapp.evan.theweather;
 
 
 //import android.app.ActionBar;
+
+import android.Manifest;
 import android.app.Activity;
-import android.app.AlertDialog;
-import android.app.Dialog;
 import android.content.Context;
-import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentSender;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
-import android.location.Address;
 import android.location.Geocoder;
-import android.location.LocationListener;
-import android.location.LocationManager;
 import android.location.Location;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
-import android.os.Build;
 import android.os.Bundle;
-import android.provider.Settings;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
-import android.support.v4.content.ContextCompat;
+import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
-
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.util.Log;
-import android.util.TypedValue;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
-import android.view.WindowManager;
 import android.widget.ImageView;
 import android.widget.TextView;
 
@@ -43,12 +34,7 @@ import com.android.volley.Response;
 import com.android.volley.VolleyError;
 import com.android.volley.VolleyLog;
 import com.android.volley.toolbox.StringRequest;
-import com.google.android.gms.common.ConnectionResult;
-import com.google.android.gms.common.api.GoogleApiClient;
-import com.google.android.gms.common.api.PendingResult;
-import com.google.android.gms.common.api.Status;
 import com.google.android.gms.location.LocationSettingsStates;
-import com.google.android.gms.location.LocationSettingsStatusCodes;
 import com.squareup.picasso.Picasso;
 import com.weapp.evan.theweather.entity.Forecast;
 import com.weapp.evan.theweather.http.ApplicationController;
@@ -56,23 +42,33 @@ import com.weapp.evan.theweather.http.Helpers;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import android.widget.Toast;
+import com.google.android.gms.common.ConnectionResult;
+import com.google.android.gms.common.api.GoogleApiClient;
+import com.google.android.gms.common.api.PendingResult;
+import com.google.android.gms.common.api.Status;
+import com.google.android.gms.location.LocationSettingsStatusCodes;
+import com.google.android.gms.common.api.GoogleApiClient.ConnectionCallbacks;
+import com.google.android.gms.common.api.GoogleApiClient.OnConnectionFailedListener;
 import com.google.android.gms.common.api.ResultCallback;
 import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.location.LocationSettingsRequest;
 import com.google.android.gms.location.LocationSettingsResult;
 
-public class MainActivity extends AppCompatActivity implements GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener,
-        com.google.android.gms.location.LocationListener, ResultCallback<LocationSettingsResult> {
+public class MainActivity extends AppCompatActivity implements
+        ConnectionCallbacks,
+        OnConnectionFailedListener,
+        com.google.android.gms.location.LocationListener,
+        ResultCallback<LocationSettingsResult> {
 
         TextView cityName;
         TextView updatedTime;
@@ -85,16 +81,13 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
         TextView humidity;
         TextView pressure;
         ImageView myLocationIcon;
-        private static boolean gps_enabled=false;
-        private static boolean network_enabled=false;
-        static Location location;
+
         private static double myLat;
         private static double myLong;
         private static String town;
         private static String state;
         private static String country;
         private static String icon;
-        static String townName;
         private static final String TAG = MainActivity.class.getName();
         static Context context;
         private RecyclerView mRecyclerView;
@@ -145,22 +138,16 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
          * Represents a geographical location.
          */
         protected Location mCurrentLocation;
+
+        /**
+         * Tracks the status of the location updates request. Value changes when the user presses the
+         * Start Updates and Stop Updates buttons.
+         */
         protected Boolean mRequestingLocationUpdates;
 
-        @Override
-        protected void onStart() {
-                super.onStart();
-                // Connect the client.
-                mGoogleApiClient.connect();
-        }
-
-        @Override
-        protected void onStop() {
-                // Disconnecting the client invalidates it.
-                mGoogleApiClient.disconnect();
-                super.onStop();
-        }
-
+        /**
+         * Time when the location was updated represented as a String.
+         */
 
         @Override
         protected void onCreate(Bundle savedInstanceState) {
@@ -183,9 +170,20 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
                 mRecyclerView.setLayoutManager(new LinearLayoutManager(MainActivity.context));
                 forecastAdapter = new ForecastAdapter(this, forecastList);
                 mRecyclerView.setAdapter(forecastAdapter);
+
                 mRequestingLocationUpdates = false;
-                startApplication();
-                Log.v(TAG, "test");
+
+                // Update values using data stored in the Bundle.
+                updateValuesFromBundle(savedInstanceState);
+
+                // Kick off the process of building the GoogleApiClient, LocationRequest, and
+                // LocationSettingsRequest objects.
+                buildGoogleApiClient();
+                createLocationRequest();
+                buildLocationSettingsRequest();
+                checkLocationSettings();
+
+                // startApplication();
         }
 
         /**
@@ -193,32 +191,231 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
          *
          * @param savedInstanceState The activity state saved in the Bundle.
          */
-//        private void updateValuesFromBundle(Bundle savedInstanceState) {
-//                if (savedInstanceState != null) {
-//                        // Update the value of mRequestingLocationUpdates from the Bundle, and make sure that
-//                        // the Start Updates and Stop Updates buttons are correctly enabled or disabled.
-//                        if (savedInstanceState.keySet().contains(KEY_REQUESTING_LOCATION_UPDATES)) {
-//                                mRequestingLocationUpdates = savedInstanceState.getBoolean(
-//                                        KEY_REQUESTING_LOCATION_UPDATES);
-//                        }
-//
-//                        // Update the value of mCurrentLocation from the Bundle and update the UI to show the
-//                        // correct latitude and longitude.
-//                        if (savedInstanceState.keySet().contains(KEY_LOCATION)) {
-//                                // Since KEY_LOCATION was found in the Bundle, we can be sure that mCurrentLocation
-//                                // is not null.
-//                                mCurrentLocation = savedInstanceState.getParcelable(KEY_LOCATION);
-//                        }
-//
-////                        // Update the value of mLastUpdateTime from the Bundle and update the UI.
-////                        if (savedInstanceState.keySet().contains(KEY_LAST_UPDATED_TIME_STRING)) {
-////                                mLastUpdateTime = savedInstanceState.getString(KEY_LAST_UPDATED_TIME_STRING);
-////                        }
-////                        updateUI();
-//                }
-//        }
+        private void updateValuesFromBundle(Bundle savedInstanceState) {
+                if (savedInstanceState != null) {
+                        // Update the value of mRequestingLocationUpdates from the Bundle, and make sure that
+                        // the Start Updates and Stop Updates buttons are correctly enabled or disabled.
+                        if (savedInstanceState.keySet().contains(KEY_REQUESTING_LOCATION_UPDATES)) {
+                                mRequestingLocationUpdates = savedInstanceState.getBoolean(
+                                        KEY_REQUESTING_LOCATION_UPDATES);
+                        }
 
-        private void startApplication(){
+                        // Update the value of mCurrentLocation from the Bundle and update the UI to show the
+                        // correct latitude and longitude.
+                        if (savedInstanceState.keySet().contains(KEY_LOCATION)) {
+                                // Since KEY_LOCATION was found in the Bundle, we can be sure that mCurrentLocation
+                                // is not null.
+                                mCurrentLocation = savedInstanceState.getParcelable(KEY_LOCATION);
+                        }
+                        updateUI();
+                }
+        }
+
+        /**
+         * Builds a GoogleApiClient. Uses the {@code #addApi} method to request the
+         * LocationServices API.
+         */
+        protected synchronized void buildGoogleApiClient() {
+                Log.i(TAG, "Building GoogleApiClient");
+                mGoogleApiClient = new GoogleApiClient
+                        .Builder(this)
+                        .addConnectionCallbacks(this)
+                        .addOnConnectionFailedListener(this)
+                        .addApi(LocationServices.API)
+                        .build();
+
+            //    locationChecker(mGoogleApiClient, this);
+        }
+
+        /**
+         * Sets up the location request. Android has two location request settings:
+         * {@code ACCESS_COARSE_LOCATION} and {@code ACCESS_FINE_LOCATION}. These settings control
+         * the accuracy of the current location. This sample uses ACCESS_FINE_LOCATION, as defined in
+         * the AndroidManifest.xml.
+         * <p/>
+         * When the ACCESS_FINE_LOCATION setting is specified, combined with a fast update
+         * interval (5 seconds), the Fused Location Provider API returns location updates that are
+         * accurate to within a few feet.
+         * <p/>
+         * These settings are appropriate for mapping applications that show real-time location
+         * updates.
+         */
+        protected void createLocationRequest() {
+                mLocationRequest = new LocationRequest();
+
+                // Sets the desired interval for active location updates. This interval is
+                // inexact. You may not receive updates at all if no location sources are available, or
+                // you may receive them slower than requested. You may also receive updates faster than
+                // requested if other applications are requesting location at a faster interval.
+                mLocationRequest.setInterval(UPDATE_INTERVAL_IN_MILLISECONDS);
+
+                // Sets the fastest rate for active location updates. This interval is exact, and your
+                // application will never receive updates faster than this value.
+                mLocationRequest.setFastestInterval(FASTEST_UPDATE_INTERVAL_IN_MILLISECONDS);
+
+                mLocationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
+        }
+
+        /**
+         * Uses a {@link com.google.android.gms.location.LocationSettingsRequest.Builder} to build
+         * a {@link com.google.android.gms.location.LocationSettingsRequest} that is used for checking
+         * if a device has the needed location settings.
+         */
+        protected void buildLocationSettingsRequest() {
+                LocationSettingsRequest.Builder builder = new LocationSettingsRequest.Builder();
+                builder.addLocationRequest(mLocationRequest);
+                builder.setAlwaysShow(true);
+                mLocationSettingsRequest = builder.build();
+
+
+        }
+
+        /**
+         * Check if the device's location settings are adequate for the app's needs using the
+         * {@link com.google.android.gms.location.SettingsApi#checkLocationSettings(GoogleApiClient,
+         * LocationSettingsRequest)} method, with the results provided through a {@code PendingResult}.
+         */
+        protected void checkLocationSettings() {
+                PendingResult<LocationSettingsResult> result =
+                        LocationServices.SettingsApi.checkLocationSettings(
+                                mGoogleApiClient,
+                                mLocationSettingsRequest
+                        );
+                result.setResultCallback(this);
+        }
+
+        /**
+         * The callback invoked when
+         * {@link com.google.android.gms.location.SettingsApi#checkLocationSettings(GoogleApiClient,
+         * LocationSettingsRequest)} is called. Examines the
+         * {@link com.google.android.gms.location.LocationSettingsResult} object and determines if
+         * location settings are adequate. If they are not, begins the process of presenting a location
+         * settings dialog to the user.
+         */
+        @Override
+        public void onResult(LocationSettingsResult locationSettingsResult) {
+                final Status status = locationSettingsResult.getStatus();
+                switch (status.getStatusCode()) {
+                        case LocationSettingsStatusCodes.SUCCESS:
+                                Log.i(TAG, "All location settings are satisfied.");
+                                if(mCurrentLocation == null)
+                                           Toast.makeText(this,
+                                                        "Please turn on Location permission for the app.",
+                                                        Toast.LENGTH_LONG).show();
+                                startLocationUpdates();
+                                break;
+                        case LocationSettingsStatusCodes.RESOLUTION_REQUIRED:
+                                Log.i(TAG, "Location settings are not satisfied. Show the user a dialog to" +
+                                        "upgrade location settings ");
+
+                                try {
+                                        // Show the dialog by calling startResolutionForResult(), and check the result
+                                        // in onActivityResult().
+                                        status.startResolutionForResult(MainActivity.this, REQUEST_CHECK_SETTINGS);
+                                } catch (IntentSender.SendIntentException e) {
+                                        Log.i(TAG, "PendingIntent unable to execute request.");
+                                }
+                                break;
+                        case LocationSettingsStatusCodes.SETTINGS_CHANGE_UNAVAILABLE:
+                                Log.i(TAG, "Location settings are inadequate, and cannot be fixed here. Dialog " +
+                                        "not created.");
+                                break;
+                }
+        }
+
+        @Override
+        protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+                switch (requestCode) {
+                        // Check for the integer request code originally supplied to startResolutionForResult().
+                        case REQUEST_CHECK_SETTINGS:
+                                switch (resultCode) {
+                                        case Activity.RESULT_OK:
+                                                Log.i(TAG, "User agreed to make required location settings changes.");
+                                                startLocationUpdates();
+                                                break;
+                                        case Activity.RESULT_CANCELED:
+                                                Log.i(TAG, "User chose not to make required location settings changes.");
+                                                break;
+                                }
+                                break;
+                }
+        }
+
+        /**
+         * Handles the Start Updates button and requests start of location updates. Does nothing if
+         * updates have already been requested.
+         */
+        public void startUpdatesButtonHandler(View view) {
+                checkLocationSettings();
+        }
+
+        /**
+         * Requests location updates from the FusedLocationApi.
+         */
+        protected void startLocationUpdates() {
+                if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                        // TODO: Consider calling
+                        //    ActivityCompat#requestPermissions
+                        // here to request the missing permissions, and then overriding
+                        //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
+                        //                                          int[] grantResults)
+                        // to handle the case where the user grants the permission. See the documentation
+                        // for ActivityCompat#requestPermissions for more details.
+                        return;
+                }
+                LocationServices.FusedLocationApi.requestLocationUpdates(
+                        mGoogleApiClient,
+                        mLocationRequest,
+                        this
+                ).setResultCallback(new ResultCallback<Status>() {
+                        @Override
+                        public void onResult(Status status) {
+                                mRequestingLocationUpdates = true;
+                                //  setButtonsEnabledState();
+                        }
+                });
+
+        }
+
+        /**
+         * Updates all UI fields.
+         */
+        private void updateUI() {
+                updateLocationUI();
+        }
+
+        /**
+         * Sets the value of the UI fields for the location latitude, longitude and last update time.
+         */
+        private void updateLocationUI() {
+                if (mCurrentLocation != null) {
+                      //  cityName.setText(mCurrentLocation.getLatitude() + ", " + mCurrentLocation.getLongitude());
+//                        forecastList.clear();
+//                        startApplication();
+                }
+        }
+
+        /**
+         * Removes location updates from the FusedLocationApi.
+         */
+        protected void stopLocationUpdates() {
+                // It is a good practice to remove location requests when the activity is in a paused or
+                // stopped state. Doing so helps battery performance and is especially
+                // recommended in applications that request frequent location updates.
+                LocationServices.FusedLocationApi.removeLocationUpdates(
+                        mGoogleApiClient,
+                        this
+                ).setResultCallback(new ResultCallback<Status>() {
+                        @Override
+                        public void onResult(Status status) {
+                                mRequestingLocationUpdates = false;
+                                //   setButtonsEnabledState();
+                        }
+                });
+        }
+
+
+        private void startApplication() {
                 ConnectivityManager cm = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
                 NetworkInfo info = cm.getActiveNetworkInfo();
 
@@ -228,48 +425,55 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
                                         "Please check your internet connection and try again.",
                                         Toast.LENGTH_LONG).show();
 
-                        } else{
+                        } else {
                                 Intent intent = getIntent();
                                 String location_name = intent.getStringExtra("location");
-                                getMyCurrentLocation();
                                 getCity();
                                 String endPoint;
                                 String endPoint_forecast;
 
-                                if(location_name != null){
+                                if (location_name != null) {
                                         StringBuilder city_name = new StringBuilder();
                                         StringBuilder state_name = new StringBuilder();
                                         StringBuilder country_name = new StringBuilder();
                                         String strArray[] = location_name.split("");
-                                        for(int i = 0; i < strArray.length; i++){
-                                                if(!strArray[i].equals(",")){
+                                        for (int i = 0; i < strArray.length; i++) {
+                                                if (!strArray[i].equals(",")) {
                                                         city_name.append(strArray[i]);
-                                                }else
+                                                } else
                                                         break;
                                         }
-                                        //  if(country_name.equals("")){
-                                        endPoint = Helpers.BASE_URL + city_name + "," + Helpers.key;
-                                        endPoint_forecast = Helpers.FORECAST_URL + city_name + "," + Helpers.FORECAST_LENGTH + Helpers.key;
+
+                                        if(location_name.indexOf(",") >= 0) {
+                                                for (int i = strArray.length - 1; i >= 0; i--) {
+                                                        if (!strArray[i].equals(",")) {
+                                                                country_name.append(strArray[i]);
+                                                        } else
+                                                                break;
+                                                }
+                                        }
+                                        if(country_name != null) {
+                                                endPoint = Helpers.BASE_URL + city_name + "," + country_name + Helpers.key;
+                                                endPoint_forecast = Helpers.FORECAST_URL + city_name + "," + country_name + Helpers.FORECAST_LENGTH + Helpers.key;
+                                        }else{
+                                                endPoint = Helpers.BASE_URL + city_name  + Helpers.key;
+                                                endPoint_forecast = Helpers.FORECAST_URL + city_name  + Helpers.FORECAST_LENGTH + Helpers.key;
+
+                                        }
                                         cityName.setText(city_name);
                                         savePref(context, city_name.toString());
-//                                         }else{
-//                                                 endPoint = Helpers.BASE_URL + city_name + "," + country_name + Helpers.key;
-//                                                 endPoint_forecast = Helpers.FORECAST_URL + city_name + "," + country_name + Helpers.FORECAST_LENGTH + Helpers.key;
-//                                                 cityName.setText(city_name + "," + state_name);
-//                                                 savePref(context, city_name + "," + state_name);
-//                                         }
-                                }else if(getPref(context) != null){
+                                } else if (getPref(context) != null) {
                                         String locationName = getPref(context).replaceAll("\\s+", "");
                                         endPoint = Helpers.BASE_URL + locationName + Helpers.key;
                                         endPoint_forecast = Helpers.FORECAST_URL + locationName + Helpers.FORECAST_LENGTH + Helpers.key;
                                         cityName.setText(getPref(context));
-                                }else{
-                                        // String townName;
+                                } else {
+                                        String townName;
                                         townName = town.replaceAll("\\s+", "");
                                         endPoint = Helpers.BASE_URL + townName + "," + country + Helpers.key;
                                         //  getCurrentWeather(endPoint);
                                         endPoint_forecast = Helpers.FORECAST_URL + townName + "," + country + Helpers.FORECAST_LENGTH + Helpers.key;
-                                        cityName.setText(town + ", " + state);
+                                        cityName.setText(town);
                                 }
                                 getCurrentWeather(endPoint);
                                 if (forecastList.isEmpty())
@@ -285,80 +489,11 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
                 });
         }
 
-        private void settingRequest(){
-                if (mGoogleApiClient == null) {
-                        mGoogleApiClient = new GoogleApiClient.Builder(this)
-                                .addApi(LocationServices.API)
-                                .addConnectionCallbacks(this)
-                                .addOnConnectionFailedListener(this).build();
-                        mGoogleApiClient.connect();
-
-                        LocationRequest locationRequest = LocationRequest.create();
-                        locationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
-                        locationRequest.setInterval(30 * 1000);
-                        locationRequest.setFastestInterval(5 * 1000);
-                        LocationSettingsRequest.Builder builder = new LocationSettingsRequest.Builder()
-                                .addLocationRequest(locationRequest);
-
-                        //**************************
-                        builder.setAlwaysShow(true); //this is the key ingredient
-                        //**************************
-
-                        PendingResult<LocationSettingsResult> result =
-                                LocationServices.SettingsApi.checkLocationSettings(mGoogleApiClient, builder.build());
-                        result.setResultCallback(new ResultCallback<LocationSettingsResult>() {
-                                @Override
-                                public void onResult(LocationSettingsResult result) {
-                                        final Status status = result.getStatus();
-                                        final LocationSettingsStates state = result.getLocationSettingsStates();
-                                        switch (status.getStatusCode()) {
-                                                case LocationSettingsStatusCodes.SUCCESS:
-                                                        // All location settings are satisfied. The client can initialize location
-                                                        // requests here.
-                                                        break;
-                                                case LocationSettingsStatusCodes.RESOLUTION_REQUIRED:
-                                                        // Location settings are not satisfied. But could be fixed by showing the user
-                                                        // a dialog.
-                                                        try {
-                                                                // Show the dialog by calling startResolutionForResult(),
-                                                                // and check the result in onActivityResult().
-                                                                status.startResolutionForResult(
-                                                                        MainActivity.this, REQUEST_CHECK_SETTINGS);
-                                                        } catch (IntentSender.SendIntentException e) {
-                                                                // Ignore the error.
-                                                        }
-                                                        break;
-                                                case LocationSettingsStatusCodes.SETTINGS_CHANGE_UNAVAILABLE:
-                                                        // Location settings are not satisfied. However, we have no way to fix the
-                                                        // settings so we won't show the dialog.
-                                                        break;
-                                        }
-                                }
-                        });             }
-        }
-
-//        @Override
-//        protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-//                switch (requestCode) {
-//// Check for the integer request code originally supplied to startResolutionForResult().
-//                        case REQUEST_CHECK_SETTINGS:
-//                                switch (resultCode) {
-//                                        case Activity.RESULT_OK:
-//                                                startApplication();
-//                                                break;
-//                                        case Activity.RESULT_CANCELED:
-//                                                settingRequest();//keep asking if imp or do whatever
-//                                                break;
-//                                }
-//                                break;
-//                }
-//        }
-
-        private void getMyLocation(){
-                getMyCurrentLocation();
+        private void getMyLocation() {
                 getCity();
                 String endPoint;
                 String endPoint_forecast;
+                String townName;
                 townName = town.replaceAll("\\s+", "");
                 endPoint = Helpers.BASE_URL + townName + "," + country + Helpers.key;
                 getCurrentWeather(endPoint);
@@ -371,9 +506,9 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
                 Log.v(TAG, "latitude: " + myLat + ", longitude: " + myLong);
         }
 
-        private void getCurrentWeather(String endpoint){
+        private void getCurrentWeather(String endpoint) {
                 StringRequest jsonObjRequest = new StringRequest(Request.Method.GET,
-                        endpoint,new Response.Listener<String>() {
+                        endpoint, new Response.Listener<String>() {
                         @Override
                         public void onResponse(String response) {
                                 Log.v(TAG, response + "volley response");
@@ -419,7 +554,7 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
                 double temp_min;
                 double temp_max;
                 JSONObject weatherMainObject;
-                JSONObject weatheWindObject;
+                JSONObject weatherWindObject;
                 long dt;
                 long unixTime = System.currentTimeMillis() / 1000L;
                 String description;
@@ -429,52 +564,52 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
 
                 try {
                         weatherMainObject = jsonObject.getJSONObject("main");
-                        weatheWindObject = jsonObject.getJSONObject("wind");
+                        weatherWindObject = jsonObject.getJSONObject("wind");
                         JSONArray jsonArray = jsonObject.getJSONArray("weather");
                         JSONObject weatherObject = jsonArray.getJSONObject(0);
                         icon = weatherObject.getString("icon");
                         description = weatherObject.getString("description");
-                        speed = weatheWindObject.getLong("speed");
+                        speed = weatherWindObject.getLong("speed");
                         //speed from m/s to km/h
-                        speed = (speed * 3600) /1000;
+                        speed = (speed * 3600) / 1000;
                         pressure_value = weatherMainObject.getInt("pressure");
                         humidity_value = weatherMainObject.getInt("humidity");
 
-                        if(icon.equals("01d")) {
+                        if (icon.equals("01d")) {
                                 Picasso.with(context).load(R.drawable.sunny).into(iconView);
-                        }else if(icon.equals("02d")) {
+                        } else if (icon.equals("02d")) {
                                 Picasso.with(context).load(R.drawable.dfewcloud).into(iconView);
-                        }else if(icon.equals("03d")) {
+                        } else if (icon.equals("03d")) {
                                 Picasso.with(context).load(R.drawable.clouds).into(iconView);
-                        }else if(icon.equals("04d")) {
+                        } else if (icon.equals("04d")) {
                                 Picasso.with(context).load(R.drawable.clouds).into(iconView);
-                        }else if(icon.equals("09d")) {
+                        } else if (icon.equals("09d")) {
                                 Picasso.with(context).load(R.drawable.rain).into(iconView);
-                        }else if(icon.equals("10d")) {
+                        } else if (icon.equals("10d")) {
                                 Picasso.with(context).load(R.drawable.rain).into(iconView);
-                        }else if(icon.equals("11d")) {
+                        } else if (icon.equals("11d")) {
                                 Picasso.with(context).load(R.drawable.dstorm).into(iconView);
-                        }else if(icon.equals("13d")) {
+                        } else if (icon.equals("13d")) {
                                 Picasso.with(context).load(R.drawable.dsnowing).into(iconView);
-                        }else if(icon.equals("50d")) {
+                        } else if (icon.equals("50d")) {
                                 Picasso.with(context).load(R.drawable.dhaze).into(iconView);
-                        }else if(icon.equals("01n")) {
+                        } else if (icon.equals("01n")) {
                                 Picasso.with(context).load(R.drawable.moon).into(iconView);
-                        }else if(icon.equals("02n")) {
+                        } else if (icon.equals("02n")) {
                                 Picasso.with(context).load(R.drawable.nfewcloud).into(iconView);
-                        }else if(icon.equals("03n")) {
+                        } else if (icon.equals("03n")) {
                                 Picasso.with(context).load(R.drawable.clouds).into(iconView);
-                        }else if(icon.equals("04n")) {
+                        } else if (icon.equals("04n")) {
                                 Picasso.with(context).load(R.drawable.clouds).into(iconView);
-                        }else if(icon.equals("09n")) {
+                        } else if (icon.equals("09n")) {
                                 Picasso.with(context).load(R.drawable.rain).into(iconView);
-                        }else if(icon.equals("10n")) {
+                        } else if (icon.equals("10n")) {
                                 Picasso.with(context).load(R.drawable.rain).into(iconView);
-                        }else if(icon.equals("11n")) {
+                        } else if (icon.equals("11n")) {
                                 Picasso.with(context).load(R.drawable.nstorm).into(iconView);
-                        }else if(icon.equals("13n")) {
+                        } else if (icon.equals("13n")) {
                                 Picasso.with(context).load(R.drawable.nsnow).into(iconView);
-                        }else if(icon.equals("50n")) {
+                        } else if (icon.equals("50n")) {
                                 Picasso.with(context).load(R.drawable.nhaze).into(iconView);
                         }
 
@@ -486,10 +621,10 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
                         temp_min = temp_min - 273.15;
                         temp_max = temp_max - 273.15;
                         currentDegree.setText(Math.round(temp) + "°");
-                        maxDegree.setText(Math.round(temp_max) + "°" );
+                        maxDegree.setText(Math.round(temp_max) + "°");
                         minDegree.setText(Math.round(temp_min) + "°");
                         dt = jsonObject.getLong("dt");
-                        updatedTime.setText(Math.round((unixTime - dt) * 0.0166667)  + " mins ago");
+                        updatedTime.setText(Math.round((unixTime - dt) * 0.0166667) + " mins ago");
                         desc.setText(description);
                         windSpeed.setText(speed + "km/h");
                         pressure.setText(Math.round(pressure_value / 10) + "kPa");
@@ -501,9 +636,9 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
                 }
         }
 
-        private void getForecast(String endpoint_forecast){
+        private void getForecast(String endpoint_forecast) {
                 StringRequest jsonObjRequest = new StringRequest(Request.Method.GET,
-                        endpoint_forecast,new Response.Listener<String>() {
+                        endpoint_forecast, new Response.Listener<String>() {
                         @Override
                         public void onResponse(String response) {
                                 Log.v(TAG, response + "forecast response");
@@ -564,7 +699,7 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
                                 Calendar cal = Calendar.getInstance();
                                 cal.setTimeInMillis(timestamp);
                                 day_of_week = cal.get(Calendar.DAY_OF_WEEK);
-                                switch (day_of_week){
+                                switch (day_of_week) {
                                         case 1:
                                                 date_to_week = "Sunday";
                                                 break;
@@ -603,22 +738,21 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
 
         }
 
-        private void getCity(){
+        private void getCity() {
                 Geocoder myLocation = new Geocoder(getApplicationContext(), Locale.getDefault());
                 try {
-                        List<Address> myList = myLocation.getFromLocation(myLat, myLong, 1);
-                        String result;
+                        List<android.location.Address> myList = myLocation.getFromLocation(mCurrentLocation.getLatitude(), mCurrentLocation.getLongitude(), 1);
 
                         if (myList != null && myList.size() > 0) {
-                                Address address = myList.get(0);
-                            //    String streetName = address.getAddressLine(0);
+                                android.location.Address address = myList.get(0);
+                                //    String streetName = address.getAddressLine(0);
                                 town = address.getLocality();
                                 state = address.getAdminArea();
                                 country = address.getCountryName();
                                 if (town == null) {
                                         town = address.getSubLocality();
                                 }
-                                //show game detail address above map when user click on the map
+                               Log.v(TAG, "town: " + town + " state: " + state + " country: " + country);
                         }
                 } catch (IOException e) {
                         Toast.makeText(this, "city not found", Toast.LENGTH_LONG).show();
@@ -645,160 +779,6 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
                 return text;
         }
 
-
-        /**
-         * Check the type of GPS Provider available at that instance and
-         * collect the location information
-         *
-         * @Output Latitude and Longitude
-         */
-        public static void getMyCurrentLocation() {
-
-                LocationManager locManager = (LocationManager) context.getSystemService(Context.LOCATION_SERVICE);
-                LocationListener locListener = new MyLocationListener();
-                Log.wtf("Location", "Start");
-
-                if ( Build.VERSION.SDK_INT >= 23 &&
-                        ContextCompat.checkSelfPermission(context, android.Manifest.permission.ACCESS_FINE_LOCATION ) != PackageManager.PERMISSION_GRANTED &&
-                        ContextCompat.checkSelfPermission(context, android.Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-                        return;
-                }
-
-
-                try {
-                        gps_enabled = locManager.isProviderEnabled(LocationManager.GPS_PROVIDER);
-                } catch (Exception ex) {
-                        ex.printStackTrace();
-                }
-                try {
-                        network_enabled = locManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER);
-                } catch (Exception ex) {
-                        ex.printStackTrace();
-                }
-
-                if (gps_enabled) {
-                        locManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, locListener);
-                }
-
-                if (gps_enabled) {
-                        location = locManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
-                }
-
-                if (network_enabled && location == null) {
-                        locManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 0, 0, locListener);
-                }
-
-                if (network_enabled && location == null) {
-                        location = locManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
-                }
-
-                if (location != null) {
-
-                        myLat = location.getLatitude();
-                        myLong = location.getLongitude();
-                } else {
-                        Location loc = getLastKnownLocation(context);
-                        if (loc != null) {
-                                myLat = loc.getLatitude();
-                                myLong = loc.getLongitude();
-                        }
-                }
-                locManager.removeUpdates((android.location.LocationListener) locListener);
-        }
-
-        @Override
-        public void onConnected(@Nullable Bundle bundle) {
-
-        }
-
-        @Override
-        public void onConnectionSuspended(int i) {
-
-        }
-
-        @Override
-        public void onLocationChanged(Location location) {
-
-        }
-
-
-
-        @Override
-        public void onConnectionFailed(@NonNull ConnectionResult connectionResult) {
-
-        }
-
-        @Override
-        public void onResult(@NonNull LocationSettingsResult locationSettingsResult) {
-
-        }
-
-        // Location listener class. to get location.
-        public static class MyLocationListener implements LocationListener {
-                public void onLocationChanged(Location location) {
-                        if (location != null) {
-                                myLat = location.getLatitude();
-                                myLong = location.getLongitude();
-                        }
-                }
-
-                public void onProviderDisabled(String provider) {
-                        // TODO Auto-generated method stub
-                }
-
-                public void onProviderEnabled(String provider) {
-                        // TODO Auto-generated method stub
-                }
-
-                public void onStatusChanged(String provider, int status, Bundle extras) {
-                        // TODO Auto-generated method stub
-                }
-        }
-
-        public static Location getLastKnownLocation(Context context){
-                Location location = null;
-                LocationManager locationmanager = (LocationManager)context.getSystemService(context.LOCATION_SERVICE);
-
-                if ( Build.VERSION.SDK_INT >= 23 &&
-                        ContextCompat.checkSelfPermission( context, android.Manifest.permission.ACCESS_FINE_LOCATION ) != PackageManager.PERMISSION_GRANTED &&
-                        ContextCompat.checkSelfPermission(context, android.Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-                        //return;
-                }
-
-                List list = locationmanager.getAllProviders();
-                boolean i = false;
-                Iterator iterator = list.iterator();
-                do
-                {
-                        if(!iterator.hasNext())
-                                break;
-                        String s = (String)iterator.next();
-
-                        if(i != false && !locationmanager.isProviderEnabled(s))
-                                continue;
-
-                        Location location1 = locationmanager.getLastKnownLocation(s);
-
-                        if(location1 == null)
-                                continue;
-                        if(location != null)
-                        {
-                                float f = location.getAccuracy();
-                                float f1 = location1.getAccuracy();
-                                if(f >= f1)
-                                {
-                                        long l = location1.getTime();
-                                        long l1 = location.getTime();
-                                        if(l - l1 <= 600000L)
-                                                continue;
-                                }
-                        }
-                        location = location1;
-                        i = locationmanager.isProviderEnabled(s);
-                } while(true);
-                return location;
-        }
-
         @Override
         public boolean onCreateOptionsMenu(Menu menu) {
                 getMenuInflater().inflate(R.menu.menu_main, menu);
@@ -820,8 +800,149 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
         }
 
         @Override
+        protected void onStart() {
+                super.onStart();
+                mGoogleApiClient.connect();
+        }
+
+        @Override
         protected void onResume() {
                 super.onResume();
+                // Within {@code onPause()}, we pause location updates, but leave the
+                // connection to GoogleApiClient intact.  Here, we resume receiving
+                // location updates if the user has requested them.
+                if (mGoogleApiClient.isConnected() && mRequestingLocationUpdates) {
+                        startLocationUpdates();
+                }
+        }
+
+        @Override
+        protected void onPause() {
+                super.onPause();
+                // Stop location updates to save battery, but don't disconnect the GoogleApiClient object.
+                if (mGoogleApiClient.isConnected()) {
+                        stopLocationUpdates();
+                }
+        }
+
+        @Override
+        protected void onStop() {
+                super.onStop();
+                mGoogleApiClient.disconnect();
+        }
+
+        /**
+         * Runs when a GoogleApiClient object successfully connects.
+         */
+        @Override
+        public void onConnected(@Nullable Bundle bundle) {
+                Log.i(TAG, "Connected to GoogleApiClient");
+
+                // If the initial location was never previously requested, we use
+                // FusedLocationApi.getLastLocation() to get it. If it was previously requested, we store
+                // its value in the Bundle and check for it in onCreate(). We
+                // do not request it again unless the user specifically requests location updates by pressing
+                // the Start Updates button.
+                //
+                // Because we cache the value of the initial location in the Bundle, it means that if the
+                // user launches the activity,
+                // moves to a new location, and then changes the device orientation, the original location
+                // is displayed as the activity is re-created.
+                if (mCurrentLocation == null) {
+                        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                                // TODO: Consider calling
+                                //    ActivityCompat#requestPermissions
+                                // here to request the missing permissions, and then overriding
+                                //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
+                                //                                          int[] grantResults)
+                                // to handle the case where the user grants the permission. See the documentation
+                                // for ActivityCompat#requestPermissions for more details.
+                                return;
+                        }
+                        mCurrentLocation = LocationServices.FusedLocationApi.getLastLocation(mGoogleApiClient);
+                        updateLocationUI();
+                        startApplication();
+                }
+        }
+
+        @Override
+        public void onConnectionSuspended(int i) {
+                Log.i(TAG, "Connection suspended");
+        }
+
+        /**
+         * Callback that fires when the location changes.
+         */
+        @Override
+        public void onLocationChanged(Location location) {
+                mCurrentLocation = location;
+              //  mLastUpdateTime = DateFormat.getTimeInstance().format(new Date());
+                updateLocationUI();
+//                Toast.makeText(this, getResources().getString(R.string.location_updated_message),
+//                        Toast.LENGTH_SHORT).show();
+        }
+
+        @Override
+        public void onConnectionFailed(@NonNull ConnectionResult connectionResult) {
+                // Refer to the javadoc for ConnectionResult to see what error codes might be returned in
+                // onConnectionFailed.
+                Log.i(TAG, "Connection failed: ConnectionResult.getErrorCode() = " + connectionResult.getErrorCode());
+        }
+
+        /**
+         * Stores activity data in the Bundle.
+         */
+        public void onSaveInstanceState(Bundle savedInstanceState) {
+                savedInstanceState.putBoolean(KEY_REQUESTING_LOCATION_UPDATES, mRequestingLocationUpdates);
+                savedInstanceState.putParcelable(KEY_LOCATION, mCurrentLocation);
+                //  savedInstanceState.putString(KEY_LAST_UPDATED_TIME_STRING, mLastUpdateTime);
+                super.onSaveInstanceState(savedInstanceState);
+        }
+
+        /**
+         * Prompt user to enable GPS and Location Services
+         * @param mGoogleApiClient
+         * @param activity
+         */
+        public static void locationChecker(GoogleApiClient mGoogleApiClient, final Activity activity) {
+                LocationRequest locationRequest = LocationRequest.create();
+                locationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
+                locationRequest.setInterval(30 * 1000);
+                locationRequest.setFastestInterval(5 * 1000);
+                LocationSettingsRequest.Builder builder = new LocationSettingsRequest.Builder()
+                        .addLocationRequest(locationRequest);
+                builder.setAlwaysShow(true);
+                PendingResult<LocationSettingsResult> result =
+                        LocationServices.SettingsApi.checkLocationSettings(mGoogleApiClient, builder.build());
+                result.setResultCallback(new ResultCallback<LocationSettingsResult>() {
+                        @Override
+                        public void onResult(LocationSettingsResult result) {
+                                final Status status = result.getStatus();
+                                final LocationSettingsStates state = result.getLocationSettingsStates();
+                                switch (status.getStatusCode()) {
+                                        case LocationSettingsStatusCodes.SUCCESS:
+                                                // All location settings are satisfied. The client can initialize location
+                                                // requests here.
+                                                break;
+                                        case LocationSettingsStatusCodes.RESOLUTION_REQUIRED:
+                                                // Location settings are not satisfied. But could be fixed by showing the user
+                                                // a dialog.
+                                                try {
+                                                        // Show the dialog by calling startResolutionForResult(),
+                                                        // and check the result in onActivityResult().
+                                                        status.startResolutionForResult(
+                                                                activity, 1000);
+                                                } catch (IntentSender.SendIntentException e) {
+                                                        // Ignore the error.
+                                                }
+                                                break;
+                                        case LocationSettingsStatusCodes.SETTINGS_CHANGE_UNAVAILABLE:
+                                                // Location settings are not satisfied. However, we have no way to fix the
+                                                // settings so we won't show the dialog.
+                                                break;
+                                }
+                        }
+                });
         }
 }
 

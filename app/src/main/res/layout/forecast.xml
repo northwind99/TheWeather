@@ -22,7 +22,7 @@
         android:id="@+id/forecast_icon"
         android:layout_marginLeft="40dp"
         android:layout_toRightOf="@id/date_to_week"
-        android:src="@drawable/d01"/>
+        android:src="@drawable/sunny"/>
 
     <TextView
         android:layout_width="wrap_content"
