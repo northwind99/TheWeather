@@ -2,10 +2,18 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     tools:context="com.weapp.evan.theweather.MainActivity">
+    <!--<item-->
+        <!--android:id="@+id/city_list_icon"-->
+        <!--android:orderInCategory="100"-->
+        <!--android:title="back"-->
+        <!--android:icon="@drawable/ic_view_list_white_24dp"-->
+        <!--android:layout_alignParentLeft="true"-->
+        <!--app:showAsAction="always" />-->
     <item
         android:id="@+id/change_cityId"
-        android:orderInCategory="100"
+        android:orderInCategory="101"
         android:title="CHANGE CITY"
         android:icon="@drawable/ic_add"
         app:showAsAction="always" />
+
 </menu>

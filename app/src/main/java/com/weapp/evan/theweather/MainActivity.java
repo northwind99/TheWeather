@@ -5,8 +5,10 @@ package com.weapp.evan.theweather;
 
 import android.Manifest;
 import android.app.Activity;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.IntentSender;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
@@ -23,6 +25,7 @@ import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.util.Log;
 import android.view.Menu;
+import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.ImageView;
@@ -63,6 +66,7 @@ import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.location.LocationSettingsRequest;
 import com.google.android.gms.location.LocationSettingsResult;
+import com.weapp.evan.theweather.service.AlarmBroadcastReceiver;
 
 public class MainActivity extends AppCompatActivity implements
         ConnectionCallbacks,
@@ -81,6 +85,11 @@ public class MainActivity extends AppCompatActivity implements
         TextView humidity;
         TextView pressure;
         ImageView myLocationIcon;
+        public static String current_degree;
+
+        public static String location_to_cityList;
+
+        public static List<String> cityList = new ArrayList<>();
 
         private static double myLat;
         private static double myLong;
@@ -95,7 +104,7 @@ public class MainActivity extends AppCompatActivity implements
         private static List<Forecast> forecastList;
         public static final String PREFS_NAME = "AOP_PREFS";
         public static final String PREFS_KEY = "AOP_PREFS_String";
-
+        private AlarmBroadcastReceiver mReceiver;
         /**
          * Constant used in the location settings dialog.
          */
@@ -184,6 +193,15 @@ public class MainActivity extends AppCompatActivity implements
                 checkLocationSettings();
 
                 // startApplication();
+
+                mReceiver = new AlarmBroadcastReceiver(){
+                        @Override
+                        public void onReceive(Context context, Intent arg1) {
+                                super.onReceive(context, arg1);
+                        }
+                };
+
+                registerReceiver(mReceiver, new IntentFilter("serviceAction"));
         }
 
         /**
@@ -461,6 +479,7 @@ public class MainActivity extends AppCompatActivity implements
 
                                         }
                                         cityName.setText(city_name);
+
                                         savePref(context, city_name.toString());
                                 } else if (getPref(context) != null) {
                                         String locationName = getPref(context).replaceAll("\\s+", "");
@@ -475,6 +494,8 @@ public class MainActivity extends AppCompatActivity implements
                                         endPoint_forecast = Helpers.FORECAST_URL + townName + "," + country + Helpers.FORECAST_LENGTH + Helpers.key;
                                         cityName.setText(town);
                                 }
+
+                                location_to_cityList = cityName.getText().toString();
                                 getCurrentWeather(endPoint);
                                 if (forecastList.isEmpty())
                                         getForecast(endPoint_forecast);
@@ -621,6 +642,7 @@ public class MainActivity extends AppCompatActivity implements
                         temp_min = temp_min - 273.15;
                         temp_max = temp_max - 273.15;
                         currentDegree.setText(Math.round(temp) + "°");
+                        current_degree = Math.round(temp) + "°";
                         maxDegree.setText(Math.round(temp_max) + "°");
                         minDegree.setText(Math.round(temp_min) + "°");
                         dt = jsonObject.getLong("dt");
@@ -787,12 +809,21 @@ public class MainActivity extends AppCompatActivity implements
 
         @Override
         public boolean onOptionsItemSelected(MenuItem item) {
-                Intent i = new Intent(context, EnterLocationActivity.class);
-                startActivity(i);
-                finish();
+                if(item.getItemId() == R.id.change_cityId) {
+                        Intent i = new Intent(context, EnterLocationActivity.class);
+                        startActivity(i);
+                        finish();
+                }
+//                else if (item.getItemId() == R.id.city_list_icon){
+//                        Log.v("wtf", location_to_cityList);
+//                        Intent i = new Intent(context, CityActivity.class);
+//                        i.putExtra("location", location_to_cityList);
+//                        startActivity(i);
+//                }
                 return super.onOptionsItemSelected(item);
         }
 
+        //
         @Override
         public void onBackPressed() {
                 super.onBackPressed();
@@ -944,6 +975,7 @@ public class MainActivity extends AppCompatActivity implements
                         }
                 });
         }
+
 }
 
 

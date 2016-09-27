@@ -135,6 +135,8 @@ public class GooglePlacesAutocompleteAdapter extends ArrayAdapter<String> implem
             Log.e(LOG_TAG, "Cannot process JSON results", e);
         }
 
+        Log.e(LOG_TAG, "google--resultlist" + resultList);
+
         return resultList;
     }
 
