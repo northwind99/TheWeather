@@ -5,7 +5,6 @@ package com.weapp.evan.theweather;
 
 import android.Manifest;
 import android.app.Activity;
-import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
@@ -25,7 +24,6 @@ import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.util.Log;
 import android.view.Menu;
-import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.ImageView;
@@ -100,7 +98,7 @@ public class MainActivity extends AppCompatActivity implements
         private static final String TAG = MainActivity.class.getName();
         static Context context;
         private RecyclerView mRecyclerView;
-        private ForecastAdapter forecastAdapter;
+        private ForecastWeatherAdapter forecastWeatherAdapter;
         private static List<Forecast> forecastList;
         public static final String PREFS_NAME = "AOP_PREFS";
         public static final String PREFS_KEY = "AOP_PREFS_String";
@@ -177,8 +175,8 @@ public class MainActivity extends AppCompatActivity implements
                 context = this;
                 mRecyclerView = (RecyclerView) findViewById(R.id.recycler_viewID);
                 mRecyclerView.setLayoutManager(new LinearLayoutManager(MainActivity.context));
-                forecastAdapter = new ForecastAdapter(this, forecastList);
-                mRecyclerView.setAdapter(forecastAdapter);
+                forecastWeatherAdapter = new ForecastWeatherAdapter(this, forecastList);
+                mRecyclerView.setAdapter(forecastWeatherAdapter);
 
                 mRequestingLocationUpdates = false;
 
@@ -752,7 +750,7 @@ public class MainActivity extends AppCompatActivity implements
                                 forecast = new Forecast(date_to_week, icon_forecast, max, min);
                                 forecastList.add(forecast);
                         }
-                        forecastAdapter.notifyDataSetChanged();
+                        forecastWeatherAdapter.notifyDataSetChanged();
                 } catch (JSONException e) {
                         e.printStackTrace();
                 }
