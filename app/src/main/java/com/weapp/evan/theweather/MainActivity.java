@@ -16,6 +16,7 @@ import android.location.Location;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.Bundle;
+import android.preference.PreferenceManager;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v4.app.ActivityCompat;
@@ -36,7 +37,10 @@ import com.android.volley.VolleyError;
 import com.android.volley.VolleyLog;
 import com.android.volley.toolbox.StringRequest;
 import com.google.android.gms.location.LocationSettingsStates;
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 import com.squareup.picasso.Picasso;
+import com.weapp.evan.theweather.entity.City;
 import com.weapp.evan.theweather.entity.Forecast;
 import com.weapp.evan.theweather.http.ApplicationController;
 import com.weapp.evan.theweather.http.Helpers;
@@ -45,6 +49,8 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.IOException;
+import java.io.Serializable;
+import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.HashMap;
@@ -85,8 +91,6 @@ public class MainActivity extends AppCompatActivity implements
         ImageView myLocationIcon;
         public static String current_degree;
 
-        public static String location_to_cityList;
-
         public static List<String> cityList = new ArrayList<>();
 
         private static double myLat;
@@ -103,6 +107,7 @@ public class MainActivity extends AppCompatActivity implements
         public static final String PREFS_NAME = "AOP_PREFS";
         public static final String PREFS_KEY = "AOP_PREFS_String";
         private AlarmBroadcastReceiver mReceiver;
+        City city;
         /**
          * Constant used in the location settings dialog.
          */
@@ -199,7 +204,7 @@ public class MainActivity extends AppCompatActivity implements
                         }
                 };
 
-                registerReceiver(mReceiver, new IntentFilter("serviceAction"));
+         //       registerReceiver(mReceiver, new IntentFilter("serviceAction"));
         }
 
         /**
@@ -442,17 +447,18 @@ public class MainActivity extends AppCompatActivity implements
                                         Toast.LENGTH_LONG).show();
 
                         } else {
-                                Intent intent = getIntent();
-                                String location_name = intent.getStringExtra("location");
+                               // Intent intent = getIntent();
+                                city =  getIntent().getParcelableExtra("location");
+                               // String location_name = city.getCityName();
                                 getCity();
                                 String endPoint;
                                 String endPoint_forecast;
 
-                                if (location_name != null) {
+                                if (city != null) {
                                         StringBuilder city_name = new StringBuilder();
                                         StringBuilder state_name = new StringBuilder();
                                         StringBuilder country_name = new StringBuilder();
-                                        String strArray[] = location_name.split("");
+                                        String strArray[] = city.getCityName().replaceAll("\\s+", "").split("");
                                         for (int i = 0; i < strArray.length; i++) {
                                                 if (!strArray[i].equals(",")) {
                                                         city_name.append(strArray[i]);
@@ -460,7 +466,7 @@ public class MainActivity extends AppCompatActivity implements
                                                         break;
                                         }
 
-                                        if(location_name.indexOf(",") >= 0) {
+                                        if(city.getCityName().replaceAll("\\s+", "").indexOf(",") >= 0) {
                                                 for (int i = strArray.length - 1; i >= 0; i--) {
                                                         if (!strArray[i].equals(",")) {
                                                                 country_name.append(strArray[i]);
@@ -476,9 +482,8 @@ public class MainActivity extends AppCompatActivity implements
                                                 endPoint_forecast = Helpers.FORECAST_URL + city_name  + Helpers.FORECAST_LENGTH + Helpers.key;
 
                                         }
-                                        cityName.setText(city_name);
-
-                                        savePref(context, city_name.toString());
+                                        cityName.setText(city.getCityName());
+                                        savePref(context, city.getCityName());
                                 } else if (getPref(context) != null) {
                                         String locationName = getPref(context).replaceAll("\\s+", "");
                                         endPoint = Helpers.BASE_URL + locationName + Helpers.key;
@@ -488,12 +493,9 @@ public class MainActivity extends AppCompatActivity implements
                                         String townName;
                                         townName = town.replaceAll("\\s+", "");
                                         endPoint = Helpers.BASE_URL + townName + "," + country + Helpers.key;
-                                        //  getCurrentWeather(endPoint);
                                         endPoint_forecast = Helpers.FORECAST_URL + townName + "," + country + Helpers.FORECAST_LENGTH + Helpers.key;
                                         cityName.setText(town);
                                 }
-
-                                location_to_cityList = cityName.getText().toString();
                                 getCurrentWeather(endPoint);
                                 if (forecastList.isEmpty())
                                         getForecast(endPoint_forecast);
@@ -641,8 +643,8 @@ public class MainActivity extends AppCompatActivity implements
                         temp_max = temp_max - 273.15;
                         currentDegree.setText(Math.round(temp) + "°");
                         current_degree = Math.round(temp) + "°";
-                        maxDegree.setText(Math.round(temp_max) + "°");
-                        minDegree.setText(Math.round(temp_min) + "°");
+//                        maxDegree.setText(Math.round(temp_max) + "°");
+//                        minDegree.setText(Math.round(temp_min) + "°");
                         dt = jsonObject.getLong("dt");
                         updatedTime.setText(Math.round((unixTime - dt) * 0.0166667) + " mins ago");
                         desc.setText(description);
@@ -785,7 +787,6 @@ public class MainActivity extends AppCompatActivity implements
                 SharedPreferences.Editor editor;
                 settings = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE); //1
                 editor = settings.edit(); //2
-
                 editor.putString(PREFS_KEY, text); //3
                 editor.commit(); //4
         }
@@ -811,13 +812,12 @@ public class MainActivity extends AppCompatActivity implements
                         Intent i = new Intent(context, EnterLocationActivity.class);
                         startActivity(i);
                         finish();
+                }else if (item.getItemId() == R.id.city_list_icon){
+                        Intent i = new Intent(context, CityActivity.class);
+                     //   i.putExtra("location", location_to_cityList);
+                        startActivity(i);
+                        finish();
                 }
-//                else if (item.getItemId() == R.id.city_list_icon){
-//                        Log.v("wtf", location_to_cityList);
-//                        Intent i = new Intent(context, CityActivity.class);
-//                        i.putExtra("location", location_to_cityList);
-//                        startActivity(i);
-//                }
                 return super.onOptionsItemSelected(item);
         }
 
@@ -972,6 +972,26 @@ public class MainActivity extends AppCompatActivity implements
                                 }
                         }
                 });
+        }
+
+        //save SharedPreference
+        public void savePrefList(Context context, ArrayList<String> list) {
+                SharedPreferences sharedPrefs = PreferenceManager.getDefaultSharedPreferences(context);
+                SharedPreferences.Editor editor = sharedPrefs.edit();
+                Gson gson = new Gson();
+                String json = gson.toJson(list);
+                editor.putString("city_List", json);
+                editor.commit();
+        }
+
+        //get SharedPreference
+        public ArrayList<String> getPrefList(Context context) {
+                SharedPreferences sharedPrefs = PreferenceManager.getDefaultSharedPreferences(context);
+                Gson gson = new Gson();
+                String json = sharedPrefs.getString("city_List", null);
+                Type type = new TypeToken<ArrayList<String>>() {}.getType();
+                ArrayList<String > list = gson.fromJson(json, type);
+                return list;
         }
 
 }

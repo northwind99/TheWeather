@@ -8,9 +8,6 @@ import com.android.volley.RequestQueue;
 import com.android.volley.VolleyLog;
 import com.android.volley.toolbox.Volley;
 
-/**
- * Created by evanchen on 16-03-29.
- */
 public class ApplicationController extends Application {
     /**
      * Log or request TAG

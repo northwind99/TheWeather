@@ -72,7 +72,6 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Min  "
             android:layout_below="@id/current_degree"
             android:id="@+id/mindegree_text"
             android:textColor="@color/white"/>
@@ -86,7 +85,6 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Max "
             android:paddingLeft="16dp"
             android:layout_below="@id/current_degree"
             android:layout_toRightOf="@id/min_degree"
